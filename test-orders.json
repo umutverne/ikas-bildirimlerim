@@ -1,0 +1,47 @@
+{
+  "simple_order": {
+    "order_number": "100045",
+    "total": 199.9,
+    "currency": "TRY",
+    "customer": {
+      "name": "Ahmet Yılmaz",
+      "phone": "+905551234567"
+    },
+    "items": [
+      { "name": "Ürün A", "qty": 1 },
+      { "name": "Ürün B", "qty": 2 }
+    ],
+    "created_at": "2025-01-19T10:23:00Z"
+  },
+  "large_order": {
+    "order_number": "100046",
+    "total": 1499.99,
+    "currency": "TRY",
+    "customer": {
+      "name": "Ayşe Demir",
+      "phone": "+905559876543"
+    },
+    "items": [
+      { "name": "Laptop", "qty": 1 },
+      { "name": "Mouse", "qty": 2 },
+      { "name": "Klavye", "qty": 1 },
+      { "name": "Monitör", "qty": 1 }
+    ],
+    "created_at": "2025-01-19T14:30:00Z"
+  },
+  "minimal_order": {
+    "order_number": "100047",
+    "total": 49.9,
+    "items": [
+      { "name": "Küçük Ürün", "qty": 1 }
+    ]
+  },
+  "missing_fields_order": {
+    "id": "TEST-999",
+    "total_price": 350,
+    "customerName": "Test Kullanıcı",
+    "line_items": [
+      { "product_name": "Deneme", "quantity": 3 }
+    ]
+  }
+}
