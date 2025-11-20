@@ -18,9 +18,17 @@ app.post('/webhook/order', async (req, res) => {
   try {
     const orderData = req.body;
 
-    console.log('📥 FULL IKAS WEBHOOK PAYLOAD:', JSON.stringify(orderData, null, 2));
+    let parsedData = orderData;
+    if (orderData.data && typeof orderData.data === 'string') {
+      try {
+        parsedData = JSON.parse(orderData.data);
+      } catch (e) {
+        parsedData = orderData;
+      }
+    }
+
     console.log('📥 Received order webhook:', {
-      order_number: orderData.order_number || orderData.orderNumber || 'N/A',
+      order_number: parsedData.orderNumber || parsedData.order_number || orderData.id || 'N/A',
       timestamp: new Date().toISOString()
     });
 
@@ -33,7 +41,7 @@ app.post('/webhook/order', async (req, res) => {
     }
 
     const minAmount = parseFloat(process.env.MIN_ORDER_AMOUNT) || 0;
-    const orderTotal = orderData.total || orderData.total_price || orderData.totalPrice || orderData.grand_total || 0;
+    const orderTotal = parsedData.totalFinalPrice || parsedData.total || parsedData.total_price || parsedData.totalPrice || parsedData.grand_total || 0;
 
     if (orderTotal < minAmount) {
       console.log(`⏭️  Order skipped: ${orderTotal} < ${minAmount} (minimum threshold)`);

@@ -28,9 +28,11 @@ function formatItems(items, lang = 'tr') {
   }
 
   return items.map(item => {
-    const qty = item.qty || item.quantity || 1;
-    const name = item.name || item.product_name || item.title || msg.unknown;
-    return `- ${qty}x ${name}`;
+    const qty = item.quantity || item.qty || 1;
+    const name = item.variant?.name || item.name || item.product_name || item.title || msg.unknown;
+    const price = item.finalPrice || item.price || item.discountPrice || 0;
+    const currency = item.currencyCode || 'TRY';
+    return `- ${qty}x ${name} (${price} ${currency})`;
   }).join('\n');
 }
 
@@ -41,26 +43,40 @@ export function formatOrderMessage(order, lang = 'tr') {
     return `🛒 ${msg.newOrder}!\n\n⚠️ ${msg.orderDataError}`;
   }
 
-  const orderNumber = order.order_number || order.orderNumber || order.number || order.id || order.order_id || msg.unknown;
+  let orderData = order;
 
-  const customerName = order.customer?.name ||
-                       order.customer?.fullName ||
-                       order.customer?.full_name ||
-                       order.customerName ||
+  if (order.data && typeof order.data === 'string') {
+    try {
+      orderData = JSON.parse(order.data);
+    } catch (e) {
+      orderData = order;
+    }
+  }
+
+  const orderNumber = orderData.orderNumber || orderData.order_number || orderData.number || orderData.id || order.id || msg.unknown;
+
+  const customerName = orderData.customer?.fullName ||
+                       orderData.customer?.name ||
+                       orderData.customer?.full_name ||
+                       orderData.customerName ||
                        msg.unknown;
 
-  const customerPhone = order.customer?.phone ||
-                        order.customer?.phoneNumber ||
-                        order.customer?.phone_number ||
-                        order.phone ||
-                        msg.unknown;
+  let customerPhone = orderData.customer?.phone ||
+                      orderData.customer?.phoneNumber ||
+                      orderData.customer?.phone_number ||
+                      orderData.phone ||
+                      msg.unknown;
 
-  const total = order.total || order.total_price || order.totalPrice || order.grand_total || 0;
-  const currency = order.currency || order.currency_code || 'TRY';
+  if (customerPhone && customerPhone !== msg.unknown) {
+    customerPhone = customerPhone.replace(/^\+90/, '0').replace(/\s+/g, '');
+  }
 
-  const items = order.items || order.line_items || order.products || [];
+  const total = orderData.totalFinalPrice || orderData.total || orderData.total_price || orderData.totalPrice || orderData.grand_total || 0;
+  const currency = orderData.currencyCode || orderData.currency || orderData.currency_code || 'TRY';
 
-  const createdAt = order.created_at || order.createdAt || order.date || order.order_date || null;
+  const items = orderData.orderLineItems || orderData.items || orderData.line_items || orderData.products || [];
+
+  const createdAt = orderData.orderedAt || orderData.created_at || orderData.createdAt || orderData.date || orderData.order_date || null;
 
   const message = `🛒 *${msg.newOrder}!*
 #${orderNumber}
