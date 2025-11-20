@@ -18,6 +18,7 @@ app.post('/webhook/order', async (req, res) => {
   try {
     const orderData = req.body;
 
+    console.log('📥 FULL IKAS WEBHOOK PAYLOAD:', JSON.stringify(orderData, null, 2));
     console.log('📥 Received order webhook:', {
       order_number: orderData.order_number || orderData.orderNumber || 'N/A',
       timestamp: new Date().toISOString()
