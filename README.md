@@ -55,6 +55,13 @@ npm start
 GET /health
 ```
 
+### Test Notification
+```
+GET /test
+```
+
+Sends a test notification to verify your Telegram setup. Open in browser to test.
+
 ### Order Webhook
 ```
 POST /webhook/order
