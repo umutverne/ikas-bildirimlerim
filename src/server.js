@@ -19,10 +19,34 @@ app.get('/test', async (req, res) => {
     if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_CHAT_ID) {
       return res.status(200).send(`
         <html>
-          <head><title>Test - IKAS Bildirimlerim</title></head>
-          <body style="font-family: Arial; padding: 40px; text-align: center;">
-            <h1>⚠️ Telegram Not Configured</h1>
-            <p>Please set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID environment variables.</p>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Yapilandirma Gerekli</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                background: #f5f5f5;
+                padding: 20px;
+              }
+              .wrap {
+                max-width: 480px;
+                margin: 60px auto;
+                background: white;
+                padding: 32px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+              }
+              h1 { font-size: 24px; margin-bottom: 12px; color: #1a1a1a; }
+              p { color: #666; line-height: 1.5; }
+            </style>
+          </head>
+          <body>
+            <div class="wrap">
+              <h1>Telegram ayarlanmamis</h1>
+              <p>TELEGRAM_BOT_TOKEN ve TELEGRAM_CHAT_ID degiskenlerini ayarla.</p>
+            </div>
           </body>
         </html>
       `);
@@ -63,54 +87,50 @@ app.get('/test', async (req, res) => {
       <html>
         <head>
           <meta charset="UTF-8">
-          <title>Test Notification Sent</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Test Bildirimi</title>
           <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
             body {
-              font-family: Arial, sans-serif;
-              padding: 40px;
-              text-align: center;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
-              min-height: 100vh;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              margin: 0;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              background: #f5f5f5;
+              padding: 20px;
             }
-            .container {
-              background: rgba(255,255,255,0.95);
-              color: #333;
-              padding: 40px;
-              border-radius: 20px;
-              box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-              max-width: 500px;
-            }
-            h1 { color: #667eea; margin-bottom: 20px; }
-            .icon { font-size: 60px; margin-bottom: 20px; }
-            p { font-size: 18px; line-height: 1.6; }
-            .btn {
-              display: inline-block;
-              margin-top: 20px;
-              padding: 12px 30px;
-              background: #667eea;
-              color: white;
-              text-decoration: none;
+            .wrap {
+              max-width: 480px;
+              margin: 60px auto;
+              background: white;
+              padding: 32px;
               border-radius: 8px;
-              font-weight: bold;
-              transition: all 0.3s;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             }
-            .btn:hover { background: #764ba2; transform: translateY(-2px); }
+            h1 {
+              font-size: 24px;
+              margin-bottom: 12px;
+              color: #1a1a1a;
+            }
+            p {
+              color: #666;
+              line-height: 1.5;
+              margin-bottom: 24px;
+            }
+            a {
+              display: inline-block;
+              background: #0066cc;
+              color: white;
+              padding: 10px 20px;
+              border-radius: 4px;
+              text-decoration: none;
+              font-size: 14px;
+            }
+            a:hover { background: #0052a3; }
           </style>
         </head>
         <body>
-          <div class="container">
-            <div class="icon">✅</div>
-            <h1>Test bildirimi gonderildi!</h1>
-            <p>Telegram'inizi kontrol edin.</p>
-            <p style="font-size: 14px; color: #666; margin-top: 20px;">
-              IKAS maganzanizdan gercek bir siparis geldiginde ayni sekilde bildirim alacaksiniz.
-            </p>
-            <a href="/test" class="btn">Tekrar Test Et</a>
+          <div class="wrap">
+            <h1>Bildirim gonderildi</h1>
+            <p>Telegram'da kontrol edebilirsin. Gercek siparisler de boyle gelecek.</p>
+            <a href="/test">Tekrar gonder</a>
           </div>
         </body>
       </html>
@@ -120,10 +140,34 @@ app.get('/test', async (req, res) => {
     console.error('❌ Test error:', error.message);
     res.status(500).send(`
       <html>
-        <head><title>Error</title></head>
-        <body style="font-family: Arial; padding: 40px; text-align: center;">
-          <h1>❌ Error</h1>
-          <p>${error.message}</p>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Hata</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              background: #f5f5f5;
+              padding: 20px;
+            }
+            .wrap {
+              max-width: 480px;
+              margin: 60px auto;
+              background: white;
+              padding: 32px;
+              border-radius: 8px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+            h1 { font-size: 24px; margin-bottom: 12px; color: #d32f2f; }
+            p { color: #666; line-height: 1.5; }
+          </style>
+        </head>
+        <body>
+          <div class="wrap">
+            <h1>Bir sorun olustu</h1>
+            <p>${error.message}</p>
+          </div>
         </body>
       </html>
     `);
