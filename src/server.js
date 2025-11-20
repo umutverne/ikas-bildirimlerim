@@ -56,6 +56,53 @@ app.get('/test', async (req, res) => {
       `);
     }
 
+    if (req.query.send !== '1') {
+      return res.status(200).send(`
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>IKAS Bildirimlerim</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                background: #f5f5f5;
+                padding: 20px;
+              }
+              .wrap {
+                max-width: 480px;
+                margin: 60px auto;
+                background: white;
+                padding: 32px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+              }
+              h1 { font-size: 24px; margin-bottom: 12px; color: #1a1a1a; }
+              p { color: #666; line-height: 1.5; margin-bottom: 24px; }
+              a {
+                display: inline-block;
+                background: #0066cc;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 4px;
+                text-decoration: none;
+                font-size: 14px;
+              }
+              a:hover { background: #0052a3; }
+            </style>
+          </head>
+          <body>
+            <div class="wrap">
+              <h1>Test bildirimi</h1>
+              <p>Telegram'a test bildirimi gonder.</p>
+              <a href="/test?send=1">Bildirim gonder</a>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
     const testOrder = {
       data: JSON.stringify({
         orderNumber: "TEST-" + Math.floor(Math.random() * 1000),
@@ -132,9 +179,9 @@ app.get('/test', async (req, res) => {
         </head>
         <body>
           <div class="wrap">
-            <h1>Bildirim gonderildi</h1>
+            <h1>Gonderildi</h1>
             <p>Telegram'da kontrol et.</p>
-            <a href="/test">Tekrar gonder</a>
+            <a href="/test">Geri don</a>
           </div>
         </body>
       </html>
