@@ -103,29 +103,56 @@ app.get('/test', async (req, res) => {
       `);
     }
 
+    const testOrders = [
+      {
+        customer: { fullName: "Ahmet Yilmaz", phone: "+905551234567" },
+        totalFinalPrice: 450.00,
+        orderLineItems: [
+          { quantity: 1, variant: { name: "Premium T-Shirt" }, finalPrice: 250.00, currencyCode: "TRY" },
+          { quantity: 2, variant: { name: "Cotton Socks" }, finalPrice: 100.00, currencyCode: "TRY" }
+        ]
+      },
+      {
+        customer: { fullName: "Ayse Demir", phone: "+905559876543" },
+        totalFinalPrice: 890.50,
+        orderLineItems: [
+          { quantity: 1, variant: { name: "Winter Jacket" }, finalPrice: 890.50, currencyCode: "TRY" }
+        ]
+      },
+      {
+        customer: { fullName: "Mehmet Kaya", phone: "+905551112233" },
+        totalFinalPrice: 325.00,
+        orderLineItems: [
+          { quantity: 3, variant: { name: "Basic T-Shirt" }, finalPrice: 75.00, currencyCode: "TRY" },
+          { quantity: 1, variant: { name: "Denim Jeans" }, finalPrice: 250.00, currencyCode: "TRY" }
+        ]
+      },
+      {
+        customer: { fullName: "Zeynep Celik", phone: "+905554445566" },
+        totalFinalPrice: 1250.00,
+        orderLineItems: [
+          { quantity: 2, variant: { name: "Leather Bag" }, finalPrice: 625.00, currencyCode: "TRY" }
+        ]
+      },
+      {
+        customer: { fullName: "Can Ozturk", phone: "+905557778899" },
+        totalFinalPrice: 180.00,
+        orderLineItems: [
+          { quantity: 1, variant: { name: "Baseball Cap" }, finalPrice: 120.00, currencyCode: "TRY" },
+          { quantity: 2, variant: { name: "Wristband" }, finalPrice: 30.00, currencyCode: "TRY" }
+        ]
+      }
+    ];
+
+    const randomOrder = testOrders[Math.floor(Math.random() * testOrders.length)];
+
     const testOrder = {
       data: JSON.stringify({
-        orderNumber: "TEST-" + Math.floor(Math.random() * 1000),
-        customer: {
-          fullName: "Test Kullanici",
-          phone: "+905551234567"
-        },
-        totalFinalPrice: 299.90,
+        orderNumber: "TEST-" + Math.floor(Math.random() * 9000 + 1000),
+        customer: randomOrder.customer,
+        totalFinalPrice: randomOrder.totalFinalPrice,
         currencyCode: "TRY",
-        orderLineItems: [
-          {
-            quantity: 2,
-            variant: { name: "Test Urun - Siyah" },
-            finalPrice: 99.95,
-            currencyCode: "TRY"
-          },
-          {
-            quantity: 1,
-            variant: { name: "Test Urun 2 - Beyaz" },
-            finalPrice: 99.95,
-            currencyCode: "TRY"
-          }
-        ],
+        orderLineItems: randomOrder.orderLineItems,
         orderedAt: new Date().toISOString()
       })
     };
