@@ -11,3 +11,8 @@ yarn-error.log*
 *.swo
 *~
 .claude/
+
+KURULUM.md
+DEPLOYMENT.md
+IKAS-SETUP.md
+test-orders.json
