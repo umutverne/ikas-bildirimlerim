@@ -10,6 +10,64 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
+app.get('/', (req, res) => {
+  res.status(200).send(`
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>IKAS Bildirimlerim</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+          }
+          .wrap {
+            max-width: 480px;
+            margin: 60px auto;
+            background: white;
+            padding: 32px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          }
+          h1 { font-size: 24px; margin-bottom: 8px; color: #1a1a1a; }
+          p { color: #666; line-height: 1.5; margin-bottom: 20px; }
+          a {
+            display: inline-block;
+            background: #0066cc;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 14px;
+            margin-right: 8px;
+          }
+          a:hover { background: #0052a3; }
+          .status {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-radius: 12px;
+            font-size: 13px;
+            margin-bottom: 16px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="wrap">
+          <div class="status">Aktif</div>
+          <h1>IKAS Bildirimlerim</h1>
+          <p>Siparis bildirimleri sistemi calisiyor.</p>
+          <a href="/test">Test bildirim gonder</a>
+        </div>
+      </body>
+    </html>
+  `);
+});
+
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK' });
 });
@@ -22,7 +80,7 @@ app.get('/test', async (req, res) => {
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Yapilandirma Gerekli</title>
+            <title>IKAS Bildirimlerim</title>
             <style>
               * { margin: 0; padding: 0; box-sizing: border-box; }
               body {
@@ -88,7 +146,7 @@ app.get('/test', async (req, res) => {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>Test Bildirimi</title>
+          <title>IKAS Bildirimlerim</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body {
@@ -128,9 +186,9 @@ app.get('/test', async (req, res) => {
         </head>
         <body>
           <div class="wrap">
-            <h1>Bildirim gonderildi</h1>
-            <p>Telegram'da kontrol edebilirsin. Gercek siparisler de boyle gelecek.</p>
-            <a href="/test">Tekrar gonder</a>
+            <h1>Test bildirimi gonderildi</h1>
+            <p>Telegram'da kontrol et. Gercek siparisler de boyle gorunecek.</p>
+            <a href="/">Ana sayfa</a>
           </div>
         </body>
       </html>
@@ -143,7 +201,7 @@ app.get('/test', async (req, res) => {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>Hata</title>
+          <title>IKAS Bildirimlerim</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body {
