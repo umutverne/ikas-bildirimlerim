@@ -1,253 +1,252 @@
-import initSqlJs from 'sql.js';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import pkg from 'pg';
+const { Pool } = pkg;
 import crypto from 'crypto';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// PostgreSQL connection pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
-const dataDir = join(__dirname, '..', 'data');
-if (!existsSync(dataDir)) {
-  mkdirSync(dataDir, { recursive: true });
+// Initialize database tables
+async function initDatabase() {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS agencies (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        api_key TEXT UNIQUE NOT NULL,
+        active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS stores (
+        id SERIAL PRIMARY KEY,
+        agency_id INTEGER NOT NULL REFERENCES agencies(id),
+        store_name TEXT NOT NULL,
+        authorized_app_id TEXT UNIQUE NOT NULL,
+        link_code TEXT UNIQUE NOT NULL,
+        webhook_id TEXT,
+        active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        store_id INTEGER NOT NULL REFERENCES stores(id),
+        chat_id TEXT UNIQUE NOT NULL,
+        first_name TEXT,
+        last_name TEXT,
+        username TEXT,
+        active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        order_number TEXT,
+        order_total REAL,
+        sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_stores_app_id ON stores(authorized_app_id);
+      CREATE INDEX IF NOT EXISTS idx_stores_link_code ON stores(link_code);
+      CREATE INDEX IF NOT EXISTS idx_users_chat_id ON users(chat_id);
+      CREATE INDEX IF NOT EXISTS idx_users_store_id ON users(store_id);
+    `);
+    console.log('✅ Database tables initialized');
+  } catch (error) {
+    console.error('❌ Database initialization error:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
-const dbPath = join(dataDir, 'app.db');
-
-const SQL = await initSqlJs();
-let db;
-
-if (existsSync(dbPath)) {
-  const buffer = readFileSync(dbPath);
-  db = new SQL.Database(buffer);
-} else {
-  db = new SQL.Database();
-}
-
-function saveDatabase() {
-  const data = db.export();
-  const buffer = Buffer.from(data);
-  writeFileSync(dbPath, buffer);
-}
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS agencies (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    api_key TEXT UNIQUE NOT NULL,
-    active INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS stores (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    agency_id INTEGER NOT NULL,
-    store_name TEXT NOT NULL,
-    authorized_app_id TEXT UNIQUE NOT NULL,
-    link_code TEXT UNIQUE NOT NULL,
-    webhook_id TEXT,
-    active INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (agency_id) REFERENCES agencies(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    store_id INTEGER NOT NULL,
-    chat_id TEXT UNIQUE NOT NULL,
-    first_name TEXT,
-    last_name TEXT,
-    username TEXT,
-    active INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (store_id) REFERENCES stores(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS notifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    order_number TEXT,
-    order_total REAL,
-    sent_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_stores_app_id ON stores(authorized_app_id);
-  CREATE INDEX IF NOT EXISTS idx_stores_link_code ON stores(link_code);
-  CREATE INDEX IF NOT EXISTS idx_users_chat_id ON users(chat_id);
-  CREATE INDEX IF NOT EXISTS idx_users_store_id ON users(store_id);
-`);
+// Initialize on startup
+await initDatabase();
 
 function generateCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
 export const db_agencies = {
-  create(name) {
+  async create(name) {
     const apiKey = crypto.randomBytes(32).toString('hex');
-    db.run('INSERT INTO agencies (name, api_key) VALUES (?, ?)', [name, apiKey]);
-    saveDatabase();
-    const result = db.exec('SELECT last_insert_rowid() as id')[0];
-    return { id: result.values[0][0], api_key: apiKey };
+    const result = await pool.query(
+      'INSERT INTO agencies (name, api_key) VALUES ($1, $2) RETURNING id',
+      [name, apiKey]
+    );
+    return { id: result.rows[0].id, api_key: apiKey };
   },
 
-  getByApiKey(apiKey) {
-    const result = db.exec('SELECT * FROM agencies WHERE api_key = ? AND active = 1', [apiKey]);
-    if (!result[0]) return null;
-    const cols = result[0].columns;
-    const vals = result[0].values[0];
-    if (!vals) return null;
-    return Object.fromEntries(cols.map((col, i) => [col, vals[i]]));
+  async getByApiKey(apiKey) {
+    const result = await pool.query(
+      'SELECT * FROM agencies WHERE api_key = $1 AND active = 1',
+      [apiKey]
+    );
+    return result.rows[0] || null;
   },
 
-  getAll() {
-    const result = db.exec('SELECT * FROM agencies ORDER BY created_at DESC');
-    if (!result[0]) return [];
-    const cols = result[0].columns;
-    return result[0].values.map(row => Object.fromEntries(cols.map((col, i) => [col, row[i]])));
+  async getAll() {
+    const result = await pool.query('SELECT * FROM agencies ORDER BY created_at DESC');
+    return result.rows;
   }
 };
 
 export const db_stores = {
-  create(agencyId, storeName, authorizedAppId) {
+  async create(agencyId, storeName, authorizedAppId) {
     const linkCode = generateCode();
-    db.run('INSERT INTO stores (agency_id, store_name, authorized_app_id, link_code) VALUES (?, ?, ?, ?)', [agencyId, storeName, authorizedAppId, linkCode]);
-    saveDatabase();
-    const result = db.exec('SELECT last_insert_rowid() as id')[0];
-    return { id: result.values[0][0], link_code: linkCode };
+    const result = await pool.query(
+      'INSERT INTO stores (agency_id, store_name, authorized_app_id, link_code) VALUES ($1, $2, $3, $4) RETURNING id',
+      [agencyId, storeName, authorizedAppId, linkCode]
+    );
+    return { id: result.rows[0].id, link_code: linkCode };
   },
 
-  getByLinkCode(linkCode) {
-    const result = db.exec('SELECT * FROM stores WHERE link_code = ? AND active = 1', [linkCode]);
-    if (!result[0]) return null;
-    const cols = result[0].columns;
-    const vals = result[0].values[0];
-    if (!vals) return null;
-    return Object.fromEntries(cols.map((col, i) => [col, vals[i]]));
+  async getByLinkCode(linkCode) {
+    const result = await pool.query(
+      'SELECT * FROM stores WHERE link_code = $1 AND active = 1',
+      [linkCode]
+    );
+    return result.rows[0] || null;
   },
 
-  getByAppId(authorizedAppId) {
-    const result = db.exec('SELECT * FROM stores WHERE authorized_app_id = ? AND active = 1', [authorizedAppId]);
-    if (!result[0]) return null;
-    const cols = result[0].columns;
-    const vals = result[0].values[0];
-    if (!vals) return null;
-    return Object.fromEntries(cols.map((col, i) => [col, vals[i]]));
+  async getByAppId(authorizedAppId) {
+    const result = await pool.query(
+      'SELECT * FROM stores WHERE authorized_app_id = $1 AND active = 1',
+      [authorizedAppId]
+    );
+    return result.rows[0] || null;
   },
 
-  getByAgency(agencyId) {
-    const result = db.exec(`
-      SELECT s.*, COUNT(u.id) as user_count
+  async getByAgency(agencyId) {
+    const result = await pool.query(`
+      SELECT s.*, COUNT(u.id)::integer as user_count
       FROM stores s
       LEFT JOIN users u ON s.id = u.store_id AND u.active = 1
-      WHERE s.agency_id = ? AND s.active = 1
+      WHERE s.agency_id = $1 AND s.active = 1
       GROUP BY s.id
       ORDER BY s.created_at DESC
     `, [agencyId]);
-    if (!result[0]) return [];
-    const cols = result[0].columns;
-    return result[0].values.map(row => Object.fromEntries(cols.map((col, i) => [col, row[i]])));
+    return result.rows;
   },
 
-  getAll() {
-    const result = db.exec(`
-      SELECT s.*, a.name as agency_name, COUNT(u.id) as user_count
+  async getAll() {
+    const result = await pool.query(`
+      SELECT s.*, a.name as agency_name, COUNT(u.id)::integer as user_count
       FROM stores s
       LEFT JOIN agencies a ON s.agency_id = a.id
       LEFT JOIN users u ON s.id = u.store_id AND u.active = 1
       WHERE s.active = 1
-      GROUP BY s.id
+      GROUP BY s.id, a.name
       ORDER BY s.created_at DESC
     `);
-    if (!result[0]) return [];
-    const cols = result[0].columns;
-    return result[0].values.map(row => Object.fromEntries(cols.map((col, i) => [col, row[i]])));
+    return result.rows;
   }
 };
 
 export const db_users = {
-  create(storeId, chatId, firstName, lastName, username) {
-    const existingResult = db.exec('SELECT * FROM users WHERE chat_id = ?', [chatId]);
-    const existing = existingResult[0] && existingResult[0].values[0] ?
-      Object.fromEntries(existingResult[0].columns.map((col, i) => [col, existingResult[0].values[0][i]])) : null;
+  async create(storeId, chatId, firstName, lastName, username) {
+    const existingResult = await pool.query(
+      'SELECT * FROM users WHERE chat_id = $1',
+      [chatId]
+    );
+    const existing = existingResult.rows[0];
 
     if (existing) {
-      db.run('UPDATE users SET store_id = ?, first_name = ?, last_name = ?, username = ?, active = 1 WHERE chat_id = ?', [storeId, firstName, lastName, username, chatId]);
-      saveDatabase();
+      await pool.query(
+        'UPDATE users SET store_id = $1, first_name = $2, last_name = $3, username = $4, active = 1 WHERE chat_id = $5',
+        [storeId, firstName, lastName, username, chatId]
+      );
       return { id: existing.id, updated: true };
     }
 
-    db.run('INSERT INTO users (store_id, chat_id, first_name, last_name, username) VALUES (?, ?, ?, ?, ?)', [storeId, chatId, firstName, lastName, username]);
-    saveDatabase();
-    const result = db.exec('SELECT last_insert_rowid() as id')[0];
-    return { id: result.values[0][0], updated: false };
+    const result = await pool.query(
+      'INSERT INTO users (store_id, chat_id, first_name, last_name, username) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      [storeId, chatId, firstName, lastName, username]
+    );
+    return { id: result.rows[0].id, updated: false };
   },
 
-  getByChatId(chatId) {
-    const result = db.exec(`
+  async getByChatId(chatId) {
+    const result = await pool.query(`
       SELECT u.*, s.store_name, s.authorized_app_id
       FROM users u
       LEFT JOIN stores s ON u.store_id = s.id
-      WHERE u.chat_id = ? AND u.active = 1
+      WHERE u.chat_id = $1 AND u.active = 1
     `, [chatId]);
-    if (!result[0]) return null;
-    const cols = result[0].columns;
-    const vals = result[0].values[0];
-    if (!vals) return null;
-    return Object.fromEntries(cols.map((col, i) => [col, vals[i]]));
+    return result.rows[0] || null;
   },
 
-  getByStore(storeId) {
-    const result = db.exec('SELECT * FROM users WHERE store_id = ? AND active = 1', [storeId]);
-    if (!result[0]) return [];
-    const cols = result[0].columns;
-    return result[0].values.map(row => Object.fromEntries(cols.map((col, i) => [col, row[i]])));
+  async getByStore(storeId) {
+    const result = await pool.query(
+      'SELECT * FROM users WHERE store_id = $1 AND active = 1',
+      [storeId]
+    );
+    return result.rows;
   },
 
-  deactivate(chatId) {
-    db.run('UPDATE users SET active = 0 WHERE chat_id = ?', [chatId]);
-    saveDatabase();
+  async deactivate(chatId) {
+    await pool.query(
+      'UPDATE users SET active = 0 WHERE chat_id = $1',
+      [chatId]
+    );
   }
 };
 
 export const db_notifications = {
-  log(userId, orderNumber, orderTotal) {
-    db.run('INSERT INTO notifications (user_id, order_number, order_total) VALUES (?, ?, ?)', [userId, orderNumber, orderTotal]);
-    saveDatabase();
+  async log(userId, orderNumber, orderTotal) {
+    await pool.query(
+      'INSERT INTO notifications (user_id, order_number, order_total) VALUES ($1, $2, $3)',
+      [userId, orderNumber, orderTotal]
+    );
   },
 
-  getStats(storeId = null) {
-    let result;
+  async getStats(storeId = null) {
+    let query, params;
+
     if (storeId) {
-      result = db.exec(`
-        SELECT COUNT(*) as total_notifications,
-               SUM(order_total) as total_revenue
+      query = `
+        SELECT COUNT(*)::integer as total_notifications,
+               SUM(order_total)::real as total_revenue
         FROM notifications n
         JOIN users u ON n.user_id = u.id
-        WHERE u.store_id = ?
-      `, [storeId]);
+        WHERE u.store_id = $1
+      `;
+      params = [storeId];
     } else {
-      result = db.exec(`
-        SELECT COUNT(*) as total_notifications,
-               SUM(order_total) as total_revenue
+      query = `
+        SELECT COUNT(*)::integer as total_notifications,
+               SUM(order_total)::real as total_revenue
         FROM notifications
-      `);
+      `;
+      params = [];
     }
-    if (!result[0]) return { total_notifications: 0, total_revenue: 0 };
-    const cols = result[0].columns;
-    const vals = result[0].values[0];
-    if (!vals) return { total_notifications: 0, total_revenue: 0 };
-    return Object.fromEntries(cols.map((col, i) => [col, vals[i]]));
+
+    const result = await pool.query(query, params);
+    return result.rows[0] || { total_notifications: 0, total_revenue: 0 };
   }
 };
 
-export function resetDatabase() {
-  db.exec('DELETE FROM notifications');
-  db.exec('DELETE FROM users');
-  db.exec('DELETE FROM stores');
-  db.exec('DELETE FROM agencies');
-  saveDatabase();
-  return { success: true, message: 'Database reset successfully' };
+export async function resetDatabase() {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM notifications');
+    await client.query('DELETE FROM users');
+    await client.query('DELETE FROM stores');
+    await client.query('DELETE FROM agencies');
+    await client.query('COMMIT');
+    return { success: true, message: 'Database reset successfully' };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
-export default db;
+export default pool;
