@@ -5,41 +5,66 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 async function sendMessage(chatId, text, parseMode = null) {
   try {
+    if (!BOT_TOKEN) {
+      console.error('❌ BOT_TOKEN is not configured!');
+      throw new Error('BOT_TOKEN is not configured');
+    }
+
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-    await axios.post(url, {
+    const response = await axios.post(url, {
       chat_id: chatId,
       text: text,
       parse_mode: parseMode
     }, {
       headers: { 'Content-Type': 'application/json; charset=utf-8' }
     });
+
+    console.log(`✅ Message sent to ${chatId}`);
+    return response.data;
   } catch (error) {
-    console.error('Bot message send error:', error.message);
+    console.error('❌ Bot message send error:', {
+      chatId,
+      error: error.message,
+      response: error.response?.data
+    });
+    throw error;
   }
 }
 
 export async function handleBotUpdate(update) {
-  if (!update.message || !update.message.text) return;
+  try {
+    console.log('📨 Received bot update:', JSON.stringify(update));
 
-  const chatId = update.message.chat.id;
-  const text = update.message.text.trim();
-  const firstName = update.message.from.first_name || '';
-  const lastName = update.message.from.last_name || '';
-  const username = update.message.from.username || '';
+    if (!update.message || !update.message.text) {
+      console.log('⚠️  No message or text in update');
+      return;
+    }
 
-  if (text.startsWith('/start')) {
-    await handleStart(chatId, firstName);
-  } else if (text.startsWith('/bagla ')) {
-    const code = text.replace('/bagla ', '').trim().toUpperCase();
-    await handleConnect(chatId, code, firstName, lastName, username);
-  } else if (text === '/durum') {
-    await handleStatus(chatId);
-  } else if (text === '/iptal') {
-    await handleCancel(chatId);
-  } else if (text === '/yardim') {
-    await handleHelp(chatId);
-  } else {
-    await sendMessage(chatId, 'Bilinmeyen komut. /yardim yazarak komutlari gorebilirsin.');
+    const chatId = update.message.chat.id;
+    const text = update.message.text.trim();
+    const firstName = update.message.from.first_name || '';
+    const lastName = update.message.from.last_name || '';
+    const username = update.message.from.username || '';
+
+    console.log(`📝 Processing command: ${text} from user ${chatId}`);
+
+    if (text.startsWith('/start')) {
+      await handleStart(chatId, firstName);
+    } else if (text.startsWith('/bagla ')) {
+      const code = text.replace('/bagla ', '').trim().toUpperCase();
+      await handleConnect(chatId, code, firstName, lastName, username);
+    } else if (text === '/durum') {
+      await handleStatus(chatId);
+    } else if (text === '/iptal') {
+      await handleCancel(chatId);
+    } else if (text === '/yardim') {
+      await handleHelp(chatId);
+    } else {
+      await sendMessage(chatId, 'Bilinmeyen komut. /yardim yazarak komutlari gorebilirsin.');
+    }
+  } catch (error) {
+    console.error('❌ Error handling bot update:', error);
+    throw error;
   }
 }
 
