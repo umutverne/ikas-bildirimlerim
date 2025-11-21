@@ -1,7 +1,7 @@
-import Database from 'better-sqlite3';
+import initSqlJs from 'sql.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -12,7 +12,23 @@ if (!existsSync(dataDir)) {
   mkdirSync(dataDir, { recursive: true });
 }
 
-const db = new Database(join(dataDir, 'app.db'));
+const dbPath = join(dataDir, 'app.db');
+
+const SQL = await initSqlJs();
+let db;
+
+if (existsSync(dbPath)) {
+  const buffer = readFileSync(dbPath);
+  db = new SQL.Database(buffer);
+} else {
+  db = new SQL.Database();
+}
+
+function saveDatabase() {
+  const data = db.export();
+  const buffer = Buffer.from(data);
+  writeFileSync(dbPath, buffer);
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS agencies (
@@ -69,49 +85,72 @@ function generateCode() {
 export const db_agencies = {
   create(name) {
     const apiKey = crypto.randomBytes(32).toString('hex');
-    const stmt = db.prepare('INSERT INTO agencies (name, api_key) VALUES (?, ?)');
-    const result = stmt.run(name, apiKey);
-    return { id: result.lastInsertRowid, api_key: apiKey };
+    db.run('INSERT INTO agencies (name, api_key) VALUES (?, ?)', [name, apiKey]);
+    saveDatabase();
+    const result = db.exec('SELECT last_insert_rowid() as id')[0];
+    return { id: result.values[0][0], api_key: apiKey };
   },
 
   getByApiKey(apiKey) {
-    return db.prepare('SELECT * FROM agencies WHERE api_key = ? AND active = 1').get(apiKey);
+    const result = db.exec('SELECT * FROM agencies WHERE api_key = ? AND active = 1', [apiKey]);
+    if (!result[0]) return null;
+    const cols = result[0].columns;
+    const vals = result[0].values[0];
+    if (!vals) return null;
+    return Object.fromEntries(cols.map((col, i) => [col, vals[i]]));
   },
 
   getAll() {
-    return db.prepare('SELECT * FROM agencies ORDER BY created_at DESC').all();
+    const result = db.exec('SELECT * FROM agencies ORDER BY created_at DESC');
+    if (!result[0]) return [];
+    const cols = result[0].columns;
+    return result[0].values.map(row => Object.fromEntries(cols.map((col, i) => [col, row[i]])));
   }
 };
 
 export const db_stores = {
   create(agencyId, storeName, authorizedAppId) {
     const linkCode = generateCode();
-    const stmt = db.prepare('INSERT INTO stores (agency_id, store_name, authorized_app_id, link_code) VALUES (?, ?, ?, ?)');
-    const result = stmt.run(agencyId, storeName, authorizedAppId, linkCode);
-    return { id: result.lastInsertRowid, link_code: linkCode };
+    db.run('INSERT INTO stores (agency_id, store_name, authorized_app_id, link_code) VALUES (?, ?, ?, ?)', [agencyId, storeName, authorizedAppId, linkCode]);
+    saveDatabase();
+    const result = db.exec('SELECT last_insert_rowid() as id')[0];
+    return { id: result.values[0][0], link_code: linkCode };
   },
 
   getByLinkCode(linkCode) {
-    return db.prepare('SELECT * FROM stores WHERE link_code = ? AND active = 1').get(linkCode);
+    const result = db.exec('SELECT * FROM stores WHERE link_code = ? AND active = 1', [linkCode]);
+    if (!result[0]) return null;
+    const cols = result[0].columns;
+    const vals = result[0].values[0];
+    if (!vals) return null;
+    return Object.fromEntries(cols.map((col, i) => [col, vals[i]]));
   },
 
   getByAppId(authorizedAppId) {
-    return db.prepare('SELECT * FROM stores WHERE authorized_app_id = ? AND active = 1').get(authorizedAppId);
+    const result = db.exec('SELECT * FROM stores WHERE authorized_app_id = ? AND active = 1', [authorizedAppId]);
+    if (!result[0]) return null;
+    const cols = result[0].columns;
+    const vals = result[0].values[0];
+    if (!vals) return null;
+    return Object.fromEntries(cols.map((col, i) => [col, vals[i]]));
   },
 
   getByAgency(agencyId) {
-    return db.prepare(`
+    const result = db.exec(`
       SELECT s.*, COUNT(u.id) as user_count
       FROM stores s
       LEFT JOIN users u ON s.id = u.store_id AND u.active = 1
       WHERE s.agency_id = ? AND s.active = 1
       GROUP BY s.id
       ORDER BY s.created_at DESC
-    `).all(agencyId);
+    `, [agencyId]);
+    if (!result[0]) return [];
+    const cols = result[0].columns;
+    return result[0].values.map(row => Object.fromEntries(cols.map((col, i) => [col, row[i]])));
   },
 
   getAll() {
-    return db.prepare(`
+    const result = db.exec(`
       SELECT s.*, a.name as agency_name, COUNT(u.id) as user_count
       FROM stores s
       LEFT JOIN agencies a ON s.agency_id = a.id
@@ -119,66 +158,86 @@ export const db_stores = {
       WHERE s.active = 1
       GROUP BY s.id
       ORDER BY s.created_at DESC
-    `).all();
+    `);
+    if (!result[0]) return [];
+    const cols = result[0].columns;
+    return result[0].values.map(row => Object.fromEntries(cols.map((col, i) => [col, row[i]])));
   }
 };
 
 export const db_users = {
   create(storeId, chatId, firstName, lastName, username) {
-    const existing = db.prepare('SELECT * FROM users WHERE chat_id = ?').get(chatId);
+    const existingResult = db.exec('SELECT * FROM users WHERE chat_id = ?', [chatId]);
+    const existing = existingResult[0] && existingResult[0].values[0] ?
+      Object.fromEntries(existingResult[0].columns.map((col, i) => [col, existingResult[0].values[0][i]])) : null;
 
     if (existing) {
-      const stmt = db.prepare('UPDATE users SET store_id = ?, first_name = ?, last_name = ?, username = ?, active = 1 WHERE chat_id = ?');
-      stmt.run(storeId, firstName, lastName, username, chatId);
+      db.run('UPDATE users SET store_id = ?, first_name = ?, last_name = ?, username = ?, active = 1 WHERE chat_id = ?', [storeId, firstName, lastName, username, chatId]);
+      saveDatabase();
       return { id: existing.id, updated: true };
     }
 
-    const stmt = db.prepare('INSERT INTO users (store_id, chat_id, first_name, last_name, username) VALUES (?, ?, ?, ?, ?)');
-    const result = stmt.run(storeId, chatId, firstName, lastName, username);
-    return { id: result.lastInsertRowid, updated: false };
+    db.run('INSERT INTO users (store_id, chat_id, first_name, last_name, username) VALUES (?, ?, ?, ?, ?)', [storeId, chatId, firstName, lastName, username]);
+    saveDatabase();
+    const result = db.exec('SELECT last_insert_rowid() as id')[0];
+    return { id: result.values[0][0], updated: false };
   },
 
   getByChatId(chatId) {
-    return db.prepare(`
+    const result = db.exec(`
       SELECT u.*, s.store_name, s.authorized_app_id
       FROM users u
       LEFT JOIN stores s ON u.store_id = s.id
       WHERE u.chat_id = ? AND u.active = 1
-    `).get(chatId);
+    `, [chatId]);
+    if (!result[0]) return null;
+    const cols = result[0].columns;
+    const vals = result[0].values[0];
+    if (!vals) return null;
+    return Object.fromEntries(cols.map((col, i) => [col, vals[i]]));
   },
 
   getByStore(storeId) {
-    return db.prepare('SELECT * FROM users WHERE store_id = ? AND active = 1').all(storeId);
+    const result = db.exec('SELECT * FROM users WHERE store_id = ? AND active = 1', [storeId]);
+    if (!result[0]) return [];
+    const cols = result[0].columns;
+    return result[0].values.map(row => Object.fromEntries(cols.map((col, i) => [col, row[i]])));
   },
 
   deactivate(chatId) {
-    const stmt = db.prepare('UPDATE users SET active = 0 WHERE chat_id = ?');
-    stmt.run(chatId);
+    db.run('UPDATE users SET active = 0 WHERE chat_id = ?', [chatId]);
+    saveDatabase();
   }
 };
 
 export const db_notifications = {
   log(userId, orderNumber, orderTotal) {
-    const stmt = db.prepare('INSERT INTO notifications (user_id, order_number, order_total) VALUES (?, ?, ?)');
-    stmt.run(userId, orderNumber, orderTotal);
+    db.run('INSERT INTO notifications (user_id, order_number, order_total) VALUES (?, ?, ?)', [userId, orderNumber, orderTotal]);
+    saveDatabase();
   },
 
   getStats(storeId = null) {
+    let result;
     if (storeId) {
-      return db.prepare(`
+      result = db.exec(`
         SELECT COUNT(*) as total_notifications,
                SUM(order_total) as total_revenue
         FROM notifications n
         JOIN users u ON n.user_id = u.id
         WHERE u.store_id = ?
-      `).get(storeId);
+      `, [storeId]);
+    } else {
+      result = db.exec(`
+        SELECT COUNT(*) as total_notifications,
+               SUM(order_total) as total_revenue
+        FROM notifications
+      `);
     }
-
-    return db.prepare(`
-      SELECT COUNT(*) as total_notifications,
-             SUM(order_total) as total_revenue
-      FROM notifications
-    `).get();
+    if (!result[0]) return { total_notifications: 0, total_revenue: 0 };
+    const cols = result[0].columns;
+    const vals = result[0].values[0];
+    if (!vals) return { total_notifications: 0, total_revenue: 0 };
+    return Object.fromEntries(cols.map((col, i) => [col, vals[i]]));
   }
 };
 
