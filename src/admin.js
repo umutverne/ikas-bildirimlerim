@@ -289,6 +289,21 @@ export function setupAdminRoutes(app) {
             }
           });
         });
+
+        document.querySelectorAll('.app-id-code').forEach(el => {
+          let revealed = false;
+          el.addEventListener('click', function() {
+            if (!revealed) {
+              this.textContent = this.dataset.appid;
+              this.style.fontWeight = 'bold';
+              revealed = true;
+            } else {
+              this.textContent = '••••••••';
+              this.style.fontWeight = 'normal';
+              revealed = false;
+            }
+          });
+        });
       </script>
     `;
 
@@ -323,7 +338,11 @@ export function setupAdminRoutes(app) {
                     ••••••••
                   </code>
                 </td>
-                <td><code style="font-size:11px;">${s.authorized_app_id.substring(0, 20)}...</code></td>
+                <td>
+                  <code class="app-id-code" data-appid="${s.authorized_app_id}" style="cursor:pointer;user-select:none;font-size:11px;" title="Gormek icin tikla">
+                    ••••••••
+                  </code>
+                </td>
                 <td>${new Date(s.created_at).toLocaleDateString('tr-TR')}</td>
               </tr>
             `).join('')}
@@ -337,6 +356,21 @@ export function setupAdminRoutes(app) {
           el.addEventListener('click', function() {
             if (!revealed) {
               this.textContent = this.dataset.code;
+              this.style.fontWeight = 'bold';
+              revealed = true;
+            } else {
+              this.textContent = '••••••••';
+              this.style.fontWeight = 'normal';
+              revealed = false;
+            }
+          });
+        });
+
+        document.querySelectorAll('.app-id-code').forEach(el => {
+          let revealed = false;
+          el.addEventListener('click', function() {
+            if (!revealed) {
+              this.textContent = this.dataset.appid;
               this.style.fontWeight = 'bold';
               revealed = true;
             } else {
