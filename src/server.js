@@ -2,6 +2,9 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { sendTelegramMessage } from './telegram.js';
 import { formatOrderMessage } from './formatOrderMessage.js';
+import { handleBotUpdate, sendOrderNotification } from './bot.js';
+import { db_stores, db_users, db_notifications } from './database.js';
+import { setupAdminRoutes } from './admin.js';
 
 dotenv.config();
 
@@ -9,6 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.get('/', (req, res) => {
   res.redirect('/test');
@@ -16,6 +20,16 @@ app.get('/', (req, res) => {
 
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK' });
+});
+
+app.post('/bot/webhook', async (req, res) => {
+  try {
+    await handleBotUpdate(req.body);
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('Bot webhook error:', error);
+    res.status(200).json({ ok: true });
+  }
 });
 
 app.get('/test', async (req, res) => {
@@ -265,37 +279,53 @@ app.post('/webhook/order', async (req, res) => {
       }
     }
 
+    const authorizedAppId = orderData.authorizedAppId;
+    const orderNumber = parsedData.orderNumber || parsedData.order_number || orderData.id || 'N/A';
+
     console.log('📥 Received order webhook:', {
-      order_number: parsedData.orderNumber || parsedData.order_number || orderData.id || 'N/A',
+      order_number: orderNumber,
+      authorized_app_id: authorizedAppId,
       timestamp: new Date().toISOString()
     });
 
-    if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_CHAT_ID) {
-      console.warn('⚠️  Telegram not configured - webhook received but cannot send notification');
-      return res.status(200).json({
-        ok: false,
-        error: 'TELEGRAM_NOT_CONFIGURED'
-      });
+    if (!authorizedAppId) {
+      console.warn('⚠️  No authorizedAppId in webhook');
+      return res.status(200).json({ ok: true, skipped: true });
     }
 
-    const minAmount = parseFloat(process.env.MIN_ORDER_AMOUNT) || 0;
-    const orderTotal = parsedData.totalFinalPrice || parsedData.total || parsedData.total_price || parsedData.totalPrice || parsedData.grand_total || 0;
+    const store = db_stores.getByAppId(authorizedAppId);
 
-    if (orderTotal < minAmount) {
-      console.log(`⏭️  Order skipped: ${orderTotal} < ${minAmount} (minimum threshold)`);
-      return res.status(200).json({
-        ok: true,
-        skipped: true,
-        reason: 'Order amount below minimum threshold'
-      });
+    if (!store) {
+      console.warn(`⚠️  Store not found for app ID: ${authorizedAppId}`);
+      return res.status(200).json({ ok: true, skipped: true });
     }
 
+    const users = db_users.getByStore(store.id);
+
+    if (users.length === 0) {
+      console.log(`📭 No users registered for store: ${store.store_name}`);
+      return res.status(200).json({ ok: true, skipped: true, reason: 'No users' });
+    }
+
+    const orderTotal = parsedData.totalFinalPrice || parsedData.total || 0;
     const lang = process.env.LANGUAGE || 'tr';
     const message = formatOrderMessage(orderData, lang);
 
-    await sendTelegramMessage(message);
+    let sentCount = 0;
 
-    res.status(200).json({ ok: true });
+    for (const user of users) {
+      try {
+        await sendOrderNotification(user.chat_id, message);
+        db_notifications.log(user.id, orderNumber, orderTotal);
+        sentCount++;
+      } catch (error) {
+        console.error(`Failed to send to user ${user.id}:`, error.message);
+      }
+    }
+
+    console.log(`✅ Sent ${sentCount}/${users.length} notifications for order ${orderNumber}`);
+
+    res.status(200).json({ ok: true, sent: sentCount });
 
   } catch (error) {
     console.error('❌ Error processing webhook:', error.message);
@@ -306,6 +336,8 @@ app.post('/webhook/order', async (req, res) => {
     });
   }
 });
+
+setupAdminRoutes(app);
 
 app.use((req, res) => {
   res.status(404).json({
