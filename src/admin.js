@@ -1,4 +1,4 @@
-import { db_agencies, db_stores, db_users, db_notifications } from './database.js';
+import { db_agencies, db_stores, db_users, db_notifications, resetDatabase } from './database.js';
 import crypto from 'crypto';
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
@@ -130,7 +130,9 @@ function renderPage(title, content) {
             <a href="/admin">Dashboard</a>
             <a href="/admin/stores">Magazalar</a>
             <a href="/admin/stores/new">Yeni Magaza</a>
+            <a href="#" onclick="if(confirm('Tum veritabani sifirlanacak. Emin misiniz?')){document.getElementById('resetForm').submit();return false;}" style="background:#d32f2f;">Veritabani Sifirla</a>
           </nav>
+          <form id="resetForm" method="POST" action="/admin/reset-database" style="display:none;"></form>
         </header>
         ${content}
       </div>
@@ -250,6 +252,11 @@ export function setupAdminRoutes(app) {
     `;
 
     res.send(renderPage('Magaza Olusturuldu', content));
+  });
+
+  app.post('/admin/reset-database', requireAuth, (req, res) => {
+    resetDatabase();
+    res.redirect('/admin');
   });
 }
 

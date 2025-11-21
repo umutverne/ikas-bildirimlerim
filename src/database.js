@@ -241,4 +241,13 @@ export const db_notifications = {
   }
 };
 
+export function resetDatabase() {
+  db.exec('DELETE FROM notifications');
+  db.exec('DELETE FROM users');
+  db.exec('DELETE FROM stores');
+  db.exec('DELETE FROM agencies');
+  saveDatabase();
+  return { success: true, message: 'Database reset successfully' };
+}
+
 export default db;
