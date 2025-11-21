@@ -1,7 +1,7 @@
 {
   "name": "ikas-bildirimlerim",
   "version": "1.0.0",
-  "description": "Multi-channel order notification service for IKAS stores",
+  "description": "Telegram order notification service for IKAS stores",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
@@ -10,10 +10,11 @@
   },
   "keywords": [
     "ikas",
-    "notifications",
     "telegram",
+    "notifications",
     "orders",
-    "webhook"
+    "webhook",
+    "bot"
   ],
   "author": "",
   "license": "ISC",

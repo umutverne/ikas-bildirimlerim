@@ -364,17 +364,10 @@ app.listen(PORT, () => {
   console.log(`📨 Webhook endpoint: http://localhost:${PORT}/webhook/order`);
   console.log('');
 
-  if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
-    console.log('✅ Telegram configured');
+  if (process.env.TELEGRAM_BOT_TOKEN) {
+    console.log('✅ Telegram Bot configured');
   } else {
-    console.log('⚠️  Telegram NOT configured - set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env');
-  }
-
-  if (process.env.SMTP_HOST) {
-    console.log('📧 Email configuration detected (not yet implemented)');
-  }
-  if (process.env.WHATSAPP_TOKEN) {
-    console.log('📱 WhatsApp configuration detected (not yet implemented)');
+    console.log('⚠️  Telegram NOT configured - set TELEGRAM_BOT_TOKEN in .env');
   }
 
   const lang = process.env.LANGUAGE || 'tr';
@@ -384,9 +377,6 @@ app.listen(PORT, () => {
   if (minAmount > 0) {
     console.log(`💰 Minimum order amount filter: ${minAmount}`);
   }
-
-  const chatIds = process.env.TELEGRAM_CHAT_ID?.split(',').length || 0;
-  console.log(`👥 Notification recipients: ${chatIds}`);
 
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
