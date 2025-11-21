@@ -44,7 +44,7 @@ export async function handleBotUpdate(update) {
 }
 
 async function handleStart(chatId, firstName) {
-  const user = db_users.getByChatId(chatId);
+  const user = await db_users.getByChatId(chatId);
 
   if (user) {
     await sendMessage(chatId,
@@ -73,7 +73,7 @@ async function handleStart(chatId, firstName) {
 }
 
 async function handleConnect(chatId, code, firstName, lastName, username) {
-  const store = db_stores.getByLinkCode(code);
+  const store = await db_stores.getByLinkCode(code);
 
   if (!store) {
     await sendMessage(chatId,
@@ -88,7 +88,7 @@ async function handleConnect(chatId, code, firstName, lastName, username) {
     return;
   }
 
-  const result = db_users.create(store.id, chatId, firstName, lastName, username);
+  const result = await db_users.create(store.id, chatId, firstName, lastName, username);
 
   if (result.updated) {
     await sendMessage(chatId,
@@ -110,7 +110,7 @@ async function handleConnect(chatId, code, firstName, lastName, username) {
 }
 
 async function handleStatus(chatId) {
-  const user = db_users.getByChatId(chatId);
+  const user = await db_users.getByChatId(chatId);
 
   if (!user) {
     await sendMessage(chatId,
@@ -136,7 +136,7 @@ async function handleStatus(chatId) {
 }
 
 async function handleCancel(chatId) {
-  const user = db_users.getByChatId(chatId);
+  const user = await db_users.getByChatId(chatId);
 
   if (!user) {
     await sendMessage(chatId,
@@ -146,7 +146,7 @@ async function handleCancel(chatId) {
     return;
   }
 
-  db_users.deactivate(chatId);
+  await db_users.deactivate(chatId);
 
   await sendMessage(chatId,
     `🔕 *Bildirimler Kapatildi*\n\n` +
