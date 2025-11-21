@@ -398,10 +398,19 @@ export function setupAdminRoutes(app) {
         <h2>Yeni Magaza Ekle</h2>
         <form method="POST" action="/admin/stores/create">
           <label>Magaza Adi:</label>
-          <input type="text" name="store_name" required placeholder="Ornek: Umut Store" />
+          <input type="text" name="store_name" required placeholder="Ornek: Test Magazam" />
+
+          <label>IKAS Access Token (Bearer Token):</label>
+          <input type="text" name="ikas_token" placeholder="Opsiyonel - IKAS API token" />
+          <small style="color: #666; display: block; margin-top: -12px; margin-bottom: 16px;">
+            IKAS Admin Panel → Ayarlar → API'den alabilirsiniz
+          </small>
 
           <label>IKAS Authorized App ID:</label>
-          <input type="text" name="authorized_app_id" required placeholder="bbc146ff-2a97-4aba-8941-99dbd1d82661" />
+          <input type="text" name="authorized_app_id" required placeholder="test-store-12345" />
+          <small style="color: #666; display: block; margin-top: -12px; margin-bottom: 16px;">
+            Token yoksa herhangi bir ID yazabilirsiniz
+          </small>
 
           <button type="submit">Magaza Olustur</button>
         </form>
@@ -412,7 +421,7 @@ export function setupAdminRoutes(app) {
   });
 
   app.post('/admin/stores/create', requireAuth, async (req, res) => {
-    const { store_name, authorized_app_id } = req.body;
+    const { store_name, authorized_app_id, ikas_token } = req.body;
 
     let agency = (await db_agencies.getAll())[0];
     if (!agency) {
@@ -420,10 +429,14 @@ export function setupAdminRoutes(app) {
       agency = { id: newAgency.id };
     }
 
-    const store = await db_stores.create(agency.id, store_name, authorized_app_id);
+    const store = await db_stores.create(agency.id, store_name, authorized_app_id, ikas_token || null);
 
     const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'ikasbildirimlerim_bot';
     const botLink = `https://t.me/${botUsername}`;
+
+    const webhookSetupButton = ikas_token
+      ? `<a href="/admin/setup-webhook/${store.id}" style="display: inline-block; padding: 10px 20px; background: #10b981; color: white; text-decoration: none; border-radius: 4px; margin-right: 8px;">🔗 IKAS Webhook Kur</a>`
+      : '';
 
     const content = `
       <div class="card">
@@ -441,6 +454,7 @@ export function setupAdminRoutes(app) {
         </ol>
 
         <div style="margin-top: 24px;">
+          ${webhookSetupButton}
           <a href="/admin" style="display: inline-block; padding: 10px 20px; background: #0066cc; color: white; text-decoration: none; border-radius: 4px;">Dashboard'a Don</a>
         </div>
       </div>
@@ -529,6 +543,91 @@ export function setupAdminRoutes(app) {
       `;
 
       res.send(renderPage('Test Siparisi Hatasi', content));
+    }
+  });
+
+  app.get('/admin/setup-webhook/:storeId', requireAuth, async (req, res) => {
+    const storeId = req.params.storeId;
+    const store = await db_stores.getAll().then(stores => stores.find(s => s.id == storeId));
+
+    if (!store || !store.ikas_token) {
+      return res.status(400).send('Store not found or IKAS token missing');
+    }
+
+    try {
+      const axios = (await import('axios')).default;
+      const webhookUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/webhook/order`
+        : `http://localhost:${process.env.PORT || 3000}/webhook/order`;
+
+      // IKAS GraphQL mutation for webhook creation
+      const mutation = `
+        mutation {
+          saveWebhook(input: {
+            scopes: ["store/order/created"]
+            endpoint: "${webhookUrl}"
+          }) {
+            id
+            endpoint
+            scopes
+          }
+        }
+      `;
+
+      const response = await axios.post(
+        'https://api.myikas.com/api/v1/admin/graphql',
+        { query: mutation },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${store.ikas_token}`
+          }
+        }
+      );
+
+      if (response.data.errors) {
+        throw new Error(response.data.errors[0].message);
+      }
+
+      const webhookId = response.data.data.saveWebhook.id;
+      await db_stores.updateWebhookId(store.id, webhookId);
+
+      const content = `
+        <div class="card">
+          <h2>✅ Webhook Kuruldu!</h2>
+          <p><strong>Magaza:</strong> ${store.store_name}</p>
+          <p><strong>Webhook URL:</strong> ${webhookUrl}</p>
+          <p><strong>Webhook ID:</strong> ${webhookId}</p>
+          <p><strong>Event:</strong> store/order/created</p>
+
+          <div style="margin-top: 24px; padding: 16px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
+            <strong style="color: #065f46;">🎉 Sistem Hazır!</strong>
+            <p style="color: #047857; margin-top: 8px;">
+              Artık IKAS'tan gelen siparişler otomatik olarak Telegram'a bildirilecek.
+            </p>
+          </div>
+
+          <div style="margin-top: 24px;">
+            <a href="/admin" style="display: inline-block; padding: 10px 20px; background: #0066cc; color: white; text-decoration: none; border-radius: 4px;">Dashboard'a Don</a>
+          </div>
+        </div>
+      `;
+
+      res.send(renderPage('Webhook Kuruldu', content));
+    } catch (error) {
+      const content = `
+        <div class="card">
+          <h2>❌ Webhook Kurulum Hatasi</h2>
+          <p><strong>Hata:</strong> ${error.message}</p>
+          <p style="margin-top: 16px; color: #666;">IKAS API token'ınızı kontrol edin veya IKAS destek ekibiyle iletişime geçin.</p>
+
+          <div style="margin-top: 24px;">
+            <a href="/admin" style="display: inline-block; padding: 10px 20px; background: #0066cc; color: white; text-decoration: none; border-radius: 4px;">Dashboard'a Don</a>
+          </div>
+        </div>
+      `;
+
+      res.send(renderPage('Webhook Hatasi', content));
     }
   });
 }

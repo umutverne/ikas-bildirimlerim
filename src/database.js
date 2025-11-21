@@ -45,6 +45,7 @@ async function initDatabase() {
           authorized_app_id TEXT UNIQUE NOT NULL,
           link_code TEXT UNIQUE NOT NULL,
           webhook_id TEXT,
+          ikas_token TEXT,
           active INTEGER DEFAULT 1,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -99,6 +100,7 @@ async function initDatabase() {
         authorized_app_id TEXT UNIQUE NOT NULL,
         link_code TEXT UNIQUE NOT NULL,
         webhook_id TEXT,
+        ikas_token TEXT,
         active INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (agency_id) REFERENCES agencies(id)
@@ -200,21 +202,35 @@ export const db_agencies = {
 };
 
 export const db_stores = {
-  async create(agencyId, storeName, authorizedAppId) {
+  async create(agencyId, storeName, authorizedAppId, ikasToken = null) {
     const linkCode = generateCode();
 
     if (USE_POSTGRES) {
       const result = await pool.query(
-        'INSERT INTO stores (agency_id, store_name, authorized_app_id, link_code) VALUES ($1, $2, $3, $4) RETURNING id',
-        [agencyId, storeName, authorizedAppId, linkCode]
+        'INSERT INTO stores (agency_id, store_name, authorized_app_id, link_code, ikas_token) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [agencyId, storeName, authorizedAppId, linkCode, ikasToken]
       );
       return { id: result.rows[0].id, link_code: linkCode };
     } else {
       const db = getDb();
-      const stmt = db.prepare('INSERT INTO stores (agency_id, store_name, authorized_app_id, link_code) VALUES (?, ?, ?, ?)');
-      const result = stmt.run(agencyId, storeName, authorizedAppId, linkCode);
+      const stmt = db.prepare('INSERT INTO stores (agency_id, store_name, authorized_app_id, link_code, ikas_token) VALUES (?, ?, ?, ?, ?)');
+      const result = stmt.run(agencyId, storeName, authorizedAppId, linkCode, ikasToken);
       db.close();
       return { id: result.lastInsertRowid, link_code: linkCode };
+    }
+  },
+
+  async updateWebhookId(storeId, webhookId) {
+    if (USE_POSTGRES) {
+      await pool.query(
+        'UPDATE stores SET webhook_id = $1 WHERE id = $2',
+        [webhookId, storeId]
+      );
+    } else {
+      const db = getDb();
+      const stmt = db.prepare('UPDATE stores SET webhook_id = ? WHERE id = ?');
+      stmt.run(webhookId, storeId);
+      db.close();
     }
   },
 
