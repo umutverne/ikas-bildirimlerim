@@ -33,104 +33,181 @@ function renderPage(title, content) {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          background: #f5f5f5;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          min-height: 100vh;
           padding: 20px;
         }
         .container { max-width: 1200px; margin: 0 auto; }
         header {
           background: white;
-          padding: 20px;
-          border-radius: 8px;
-          margin-bottom: 20px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          padding: 24px;
+          border-radius: 12px;
+          margin-bottom: 24px;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        h1 { font-size: 24px; color: #1a1a1a; margin-bottom: 8px; }
-        nav { margin-top: 16px; }
+        h1 {
+          font-size: 28px;
+          color: #1a1a1a;
+          margin-bottom: 4px;
+          font-weight: 700;
+        }
+        .subtitle {
+          color: #666;
+          font-size: 14px;
+          margin-bottom: 16px;
+        }
+        nav { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
         nav a {
           display: inline-block;
-          padding: 8px 16px;
-          background: #0066cc;
+          padding: 10px 18px;
+          background: #667eea;
           color: white;
           text-decoration: none;
-          border-radius: 4px;
-          margin-right: 8px;
+          border-radius: 6px;
           font-size: 14px;
+          font-weight: 500;
+          transition: all 0.2s;
         }
-        nav a:hover { background: #0052a3; }
+        nav a:hover {
+          background: #5568d3;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
         .card {
           background: white;
-          padding: 24px;
-          border-radius: 8px;
-          margin-bottom: 20px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          padding: 28px;
+          border-radius: 12px;
+          margin-bottom: 24px;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        h2 { font-size: 20px; margin-bottom: 16px; color: #1a1a1a; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e0e0e0; }
-        th { background: #f5f5f5; font-weight: 600; }
+        h2 {
+          font-size: 22px;
+          margin-bottom: 20px;
+          color: #1a1a1a;
+          font-weight: 600;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 14px;
+        }
+        th, td {
+          padding: 14px 12px;
+          text-align: left;
+          border-bottom: 1px solid #e8e8e8;
+        }
+        th {
+          background: #f8f9fa;
+          font-weight: 600;
+          color: #555;
+          text-transform: uppercase;
+          font-size: 12px;
+          letter-spacing: 0.5px;
+        }
+        tr:hover { background: #f8f9fa; }
         .badge {
           display: inline-block;
           padding: 4px 12px;
-          background: #e8f5e9;
-          color: #2e7d32;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
           border-radius: 12px;
           font-size: 12px;
+          font-weight: 600;
         }
         .stats {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 16px;
-          margin-bottom: 20px;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 20px;
+          margin-bottom: 24px;
         }
         .stat-card {
           background: white;
-          padding: 20px;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          padding: 24px;
+          border-radius: 12px;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+          border-left: 4px solid #667eea;
+          transition: transform 0.2s;
         }
-        .stat-value { font-size: 32px; font-weight: bold; color: #0066cc; }
-        .stat-label { font-size: 14px; color: #666; margin-top: 4px; }
+        .stat-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .stat-value {
+          font-size: 36px;
+          font-weight: bold;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        .stat-label {
+          font-size: 13px;
+          color: #666;
+          margin-top: 6px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-weight: 500;
+        }
         form { margin-top: 16px; }
-        label { display: block; margin-bottom: 8px; font-weight: 500; }
+        label {
+          display: block;
+          margin-bottom: 8px;
+          font-weight: 600;
+          color: #333;
+          font-size: 14px;
+        }
         input, textarea {
           width: 100%;
-          padding: 10px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
+          padding: 12px;
+          border: 2px solid #e0e0e0;
+          border-radius: 6px;
           margin-bottom: 16px;
           font-size: 14px;
+          transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus {
+          outline: none;
+          border-color: #667eea;
         }
         button {
-          background: #0066cc;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           color: white;
-          padding: 10px 20px;
+          padding: 12px 24px;
           border: none;
-          border-radius: 4px;
+          border-radius: 6px;
           cursor: pointer;
           font-size: 14px;
+          font-weight: 600;
+          transition: all 0.2s;
         }
-        button:hover { background: #0052a3; }
+        button:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
         .code {
-          background: #f5f5f5;
-          padding: 12px;
-          border-radius: 4px;
-          font-family: monospace;
-          font-size: 18px;
+          background: #f8f9fa;
+          padding: 16px;
+          border-radius: 8px;
+          font-family: 'Courier New', monospace;
+          font-size: 20px;
           font-weight: bold;
           text-align: center;
-          margin: 12px 0;
+          margin: 16px 0;
+          border: 2px dashed #667eea;
+          color: #667eea;
         }
       </style>
     </head>
     <body>
       <div class="container">
         <header>
-          <h1>IKAS Bildirimlerim Admin</h1>
+          <h1>🎯 IKAS Bildirimlerim</h1>
+          <div class="subtitle">Yonetim Paneli</div>
           <nav>
-            <a href="/admin">Dashboard</a>
-            <a href="/admin/stores">Magazalar</a>
-            <a href="/admin/stores/new">Yeni Magaza</a>
-            <a href="#" onclick="if(confirm('Tum veritabani sifirlanacak. Emin misiniz?')){document.getElementById('resetForm').submit();return false;}" style="background:#d32f2f;">Veritabani Sifirla</a>
+            <a href="/admin">📊 Dashboard</a>
+            <a href="/admin/stores">🏪 Magazalar</a>
+            <a href="/admin/stores/new">➕ Yeni Magaza</a>
+            <a href="#" onclick="if(confirm('Tum veritabani sifirlanacak. Emin misiniz?')){document.getElementById('resetForm').submit();return false;}" style="background:linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">🗑️ Sifirla</a>
           </nav>
           <form id="resetForm" method="POST" action="/admin/reset-database" style="display:none;"></form>
         </header>
@@ -185,16 +262,94 @@ export function setupAdminRoutes(app) {
                 <td>${s.store_name}</td>
                 <td>${s.agency_name || 'Demo'}</td>
                 <td><span class="badge">${s.user_count}</span></td>
-                <td><code>${s.link_code}</code></td>
+                <td>
+                  <code class="link-code" data-code="${s.link_code}" style="cursor:pointer;user-select:none;" title="Gormek icin tikla">
+                    ••••••••
+                  </code>
+                </td>
                 <td>${new Date(s.created_at).toLocaleDateString('tr-TR')}</td>
               </tr>
             `).join('')}
           </tbody>
         </table>
       </div>
+
+      <script>
+        document.querySelectorAll('.link-code').forEach(el => {
+          let revealed = false;
+          el.addEventListener('click', function() {
+            if (!revealed) {
+              this.textContent = this.dataset.code;
+              this.style.fontWeight = 'bold';
+              revealed = true;
+            } else {
+              this.textContent = '••••••••';
+              this.style.fontWeight = 'normal';
+              revealed = false;
+            }
+          });
+        });
+      </script>
     `;
 
     res.send(renderPage('Dashboard', content));
+  });
+
+  app.get('/admin/stores', requireAuth, (req, res) => {
+    const stores = db_stores.getAll();
+
+    const content = `
+      <div class="card">
+        <h2>Tum Magazalar</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Magaza Adi</th>
+              <th>Ajans</th>
+              <th>Kullanici Sayisi</th>
+              <th>Baglanti Kodu</th>
+              <th>App ID</th>
+              <th>Tarih</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${stores.length === 0 ? '<tr><td colspan="6" style="text-align:center;color:#666;">Henuz magaza yok</td></tr>' : stores.map(s => `
+              <tr>
+                <td><strong>${s.store_name}</strong></td>
+                <td>${s.agency_name || 'Demo'}</td>
+                <td><span class="badge">${s.user_count}</span></td>
+                <td>
+                  <code class="link-code" data-code="${s.link_code}" style="cursor:pointer;user-select:none;" title="Gormek icin tikla">
+                    ••••••••
+                  </code>
+                </td>
+                <td><code style="font-size:11px;">${s.authorized_app_id.substring(0, 20)}...</code></td>
+                <td>${new Date(s.created_at).toLocaleDateString('tr-TR')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <script>
+        document.querySelectorAll('.link-code').forEach(el => {
+          let revealed = false;
+          el.addEventListener('click', function() {
+            if (!revealed) {
+              this.textContent = this.dataset.code;
+              this.style.fontWeight = 'bold';
+              revealed = true;
+            } else {
+              this.textContent = '••••••••';
+              this.style.fontWeight = 'normal';
+              revealed = false;
+            }
+          });
+        });
+      </script>
+    `;
+
+    res.send(renderPage('Magazalar', content));
   });
 
   app.get('/admin/stores/new', requireAuth, (req, res) => {

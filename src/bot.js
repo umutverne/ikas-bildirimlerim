@@ -48,20 +48,26 @@ async function handleStart(chatId, firstName) {
 
   if (user) {
     await sendMessage(chatId,
-      `Tekrar hosgeldin ${firstName}!\n\n` +
-      `Aktif magazan: ${user.store_name}\n\n` +
-      `Komutlar:\n` +
-      `/durum - Bagli magazani gor\n` +
-      `/iptal - Bildirimleri iptal et\n` +
-      `/yardim - Yardim`
+      `👋 Tekrar hosgeldin ${firstName}!\n\n` +
+      `✅ Aktif magazan: *${user.store_name}*\n\n` +
+      `📋 Kullanilabilir komutlar:\n` +
+      `• /durum - Baglanti durumunu gor\n` +
+      `• /iptal - Bildirimleri kapat\n` +
+      `• /yardim - Yardim al\n\n` +
+      `Yeni siparisler icin bildirim alacaksin! 🔔`,
+      'Markdown'
     );
   } else {
     await sendMessage(chatId,
-      `Hosgeldin ${firstName}!\n\n` +
-      `IKAS siparis bildirimlerine hosgeldin.\n\n` +
-      `Magazana baglanmak icin:\n` +
+      `👋 Merhaba ${firstName}!\n\n` +
+      `🎉 IKAS Bildirimlerim'e hosgeldin!\n\n` +
+      `Bu bot sayesinde magazandan gelen yeni siparisleri aninda Telegram'dan takip edebilirsin.\n\n` +
+      `🔗 *Magazana Baglanmak icin:*\n` +
+      `Asagidaki komutu kullan:\n` +
       `/bagla KOD\n\n` +
-      `Magazandan aldigin baglanti kodunu kullan.`
+      `📌 Baglanti kodunu magazandan alabilirsin.\n\n` +
+      `Sorularin mi var? /yardim yazarak yardim alabilirsin.`,
+      'Markdown'
     );
   }
 }
@@ -71,8 +77,13 @@ async function handleConnect(chatId, code, firstName, lastName, username) {
 
   if (!store) {
     await sendMessage(chatId,
-      `Kod gecersiz: ${code}\n\n` +
-      `Lutfen dogru kodu gir veya magazandan yeni kod al.`
+      `❌ *Gecersiz Kod!*\n\n` +
+      `Girdigin kod: \`${code}\`\n\n` +
+      `Lutfen:\n` +
+      `• Kodu kontrol et ve tekrar dene\n` +
+      `• Magazandan yeni kod al\n` +
+      `• Bosluk birakmadigindan emin ol`,
+      'Markdown'
     );
     return;
   }
@@ -81,15 +92,19 @@ async function handleConnect(chatId, code, firstName, lastName, username) {
 
   if (result.updated) {
     await sendMessage(chatId,
-      `Magaza degistirildi!\n\n` +
-      `Yeni magaza: ${store.store_name}\n\n` +
-      `Artik bu magazanin siparislerini alacaksin.`
+      `🔄 *Magaza Degistirildi!*\n\n` +
+      `Yeni magazan: *${store.store_name}*\n\n` +
+      `✅ Artik bu magazanin siparislerini alacaksin.\n` +
+      `🔔 Bildirimler aktif!`,
+      'Markdown'
     );
   } else {
     await sendMessage(chatId,
-      `Basariyla baglandi!\n\n` +
-      `Magaza: ${store.store_name}\n\n` +
-      `Artik yeni siparisler icin bildirim alacaksin.`
+      `✅ *Basariyla Baglandi!*\n\n` +
+      `🏪 Magazan: *${store.store_name}*\n\n` +
+      `🎉 Harika! Artik yeni siparisler icin bildirim alacaksin.\n\n` +
+      `📱 Durum gormek icin: /durum`,
+      'Markdown'
     );
   }
 }
@@ -99,18 +114,24 @@ async function handleStatus(chatId) {
 
   if (!user) {
     await sendMessage(chatId,
-      `Henuz bir magazaya bagli degilsin.\n\n` +
-      `Baglanmak icin:\n` +
-      `/bagla KOD`
+      `⚠️ *Henuz Bagli Degilsin*\n\n` +
+      `Siparis bildirimleri almak icin bir magazaya baglanman gerekiyor.\n\n` +
+      `🔗 Baglanmak icin:\n` +
+      `/bagla KOD\n\n` +
+      `Baglanti kodunu magazandan alabilirsin.`,
+      'Markdown'
     );
     return;
   }
 
   await sendMessage(chatId,
-    `Aktif durumdasin\n\n` +
-    `Magaza: ${user.store_name}\n` +
-    `Baglanti tarihi: ${new Date(user.created_at).toLocaleDateString('tr-TR')}\n\n` +
-    `Siparis bildirimleri aktif.`
+    `📊 *Baglanti Durumu*\n\n` +
+    `✅ Aktif\n\n` +
+    `🏪 Magaza: *${user.store_name}*\n` +
+    `📅 Baglanti tarihi: ${new Date(user.created_at).toLocaleDateString('tr-TR')}\n` +
+    `🔔 Bildirimler: Aktif\n\n` +
+    `Her yeni siparis icin bildirim alacaksin!`,
+    'Markdown'
   );
 }
 
@@ -118,27 +139,43 @@ async function handleCancel(chatId) {
   const user = db_users.getByChatId(chatId);
 
   if (!user) {
-    await sendMessage(chatId, 'Zaten bir magazaya bagli degilsin.');
+    await sendMessage(chatId,
+      `ℹ️ Zaten bir magazaya bagli degilsin.\n\n` +
+      `Baglanti kurmak icin /bagla komutunu kullan.`
+    );
     return;
   }
 
   db_users.deactivate(chatId);
 
   await sendMessage(chatId,
-    `Bildirimler iptal edildi.\n\n` +
-    `Artik ${user.store_name} magazasindan bildirim almayacaksin.\n\n` +
-    `Tekrar baglanmak icin /bagla komutunu kullan.`
+    `🔕 *Bildirimler Kapatildi*\n\n` +
+    `*${user.store_name}* magazasindan artik bildirim almayacaksin.\n\n` +
+    `Tekrar baglanmak istersen:\n` +
+    `/bagla KOD\n\n` +
+    `Yardima ihtiyacin varsa /yardim yazabilirsin.`,
+    'Markdown'
   );
 }
 
 async function handleHelp(chatId) {
   await sendMessage(chatId,
-    `IKAS Bildirimlerim - Komutlar\n\n` +
-    `/start - Baslangic\n` +
-    `/bagla KOD - Magazaya baglan\n` +
-    `/durum - Aktif durum\n` +
-    `/iptal - Bildirimleri iptal et\n` +
-    `/yardim - Bu mesaj`
+    `📚 *IKAS Bildirimlerim - Yardim*\n\n` +
+    `*Kullanilabilir Komutlar:*\n\n` +
+    `🏠 /start\n` +
+    `Bota hosgeldin mesaji\n\n` +
+    `🔗 /bagla KOD\n` +
+    `Magazana baglan ve bildirimleri baslat\n` +
+    `Ornek: \`/bagla ABC123\`\n\n` +
+    `📊 /durum\n` +
+    `Aktif baglanti durumunu gor\n\n` +
+    `🔕 /iptal\n` +
+    `Bildirimleri kapat\n\n` +
+    `❓ /yardim\n` +
+    `Bu yardim mesajini gor\n\n` +
+    `──────────────\n` +
+    `💡 *Ipucu:* Baglanti kodunu magazandan alabilirsin.`,
+    'Markdown'
   );
 }
 
