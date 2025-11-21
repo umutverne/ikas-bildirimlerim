@@ -293,14 +293,14 @@ app.post('/webhook/order', async (req, res) => {
       return res.status(200).json({ ok: true, skipped: true });
     }
 
-    const store = db_stores.getByAppId(authorizedAppId);
+    const store = await db_stores.getByAppId(authorizedAppId);
 
     if (!store) {
       console.warn(`⚠️  Store not found for app ID: ${authorizedAppId}`);
       return res.status(200).json({ ok: true, skipped: true });
     }
 
-    const users = db_users.getByStore(store.id);
+    const users = await db_users.getByStore(store.id);
 
     if (users.length === 0) {
       console.log(`📭 No users registered for store: ${store.store_name}`);
@@ -316,7 +316,7 @@ app.post('/webhook/order', async (req, res) => {
     for (const user of users) {
       try {
         await sendOrderNotification(user.chat_id, message);
-        db_notifications.log(user.id, orderNumber, orderTotal);
+        await db_notifications.log(user.id, orderNumber, orderTotal);
         sentCount++;
       } catch (error) {
         console.error(`Failed to send to user ${user.id}:`, error.message);

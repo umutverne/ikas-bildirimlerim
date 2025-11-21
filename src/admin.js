@@ -219,10 +219,10 @@ function renderPage(title, content) {
 }
 
 export function setupAdminRoutes(app) {
-  app.get('/admin', requireAuth, (req, res) => {
-    const stores = db_stores.getAll();
+  app.get('/admin', requireAuth, async (req, res) => {
+    const stores = await db_stores.getAll();
     const allUsers = stores.reduce((sum, s) => sum + s.user_count, 0);
-    const stats = db_notifications.getStats();
+    const stats = await db_notifications.getStats();
 
     const content = `
       <div class="stats">
@@ -310,8 +310,8 @@ export function setupAdminRoutes(app) {
     res.send(renderPage('Dashboard', content));
   });
 
-  app.get('/admin/stores', requireAuth, (req, res) => {
-    const stores = db_stores.getAll();
+  app.get('/admin/stores', requireAuth, async (req, res) => {
+    const stores = await db_stores.getAll();
 
     const content = `
       <div class="card">
@@ -405,16 +405,16 @@ export function setupAdminRoutes(app) {
     res.send(renderPage('Yeni Magaza', content));
   });
 
-  app.post('/admin/stores/create', requireAuth, (req, res) => {
+  app.post('/admin/stores/create', requireAuth, async (req, res) => {
     const { store_name, authorized_app_id } = req.body;
 
-    let agency = db_agencies.getAll()[0];
+    let agency = (await db_agencies.getAll())[0];
     if (!agency) {
-      const newAgency = db_agencies.create('Demo Agency');
+      const newAgency = await db_agencies.create('Demo Agency');
       agency = { id: newAgency.id };
     }
 
-    const store = db_stores.create(agency.id, store_name, authorized_app_id);
+    const store = await db_stores.create(agency.id, store_name, authorized_app_id);
 
     const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'ikasbildirimlerim_bot';
     const botLink = `https://t.me/${botUsername}`;
@@ -443,8 +443,8 @@ export function setupAdminRoutes(app) {
     res.send(renderPage('Magaza Olusturuldu', content));
   });
 
-  app.post('/admin/reset-database', requireAuth, (req, res) => {
-    resetDatabase();
+  app.post('/admin/reset-database', requireAuth, async (req, res) => {
+    await resetDatabase();
     res.redirect('/admin');
   });
 }
