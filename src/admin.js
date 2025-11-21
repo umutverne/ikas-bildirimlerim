@@ -254,6 +254,7 @@ export function setupAdminRoutes(app) {
               <th>Kullanici Sayisi</th>
               <th>Baglanti Kodu</th>
               <th>Tarih</th>
+              <th>Islemler</th>
             </tr>
           </thead>
           <tbody>
@@ -268,6 +269,11 @@ export function setupAdminRoutes(app) {
                   </code>
                 </td>
                 <td>${new Date(s.created_at).toLocaleDateString('tr-TR')}</td>
+                <td>
+                  <a href="/admin/test-webhook/${s.id}" style="display: inline-block; padding: 6px 12px; background: #10b981; color: white; text-decoration: none; border-radius: 4px; font-size: 12px;">
+                    🧪 Test Siparisi
+                  </a>
+                </td>
               </tr>
             `).join('')}
           </tbody>
@@ -446,6 +452,84 @@ export function setupAdminRoutes(app) {
   app.post('/admin/reset-database', requireAuth, async (req, res) => {
     await resetDatabase();
     res.redirect('/admin');
+  });
+
+  app.get('/admin/test-webhook/:storeId', requireAuth, async (req, res) => {
+    const storeId = req.params.storeId;
+    const store = await db_stores.getAll().then(stores => stores.find(s => s.id == storeId));
+
+    if (!store) {
+      return res.status(404).send('Store not found');
+    }
+
+    const testOrders = [
+      {
+        customer: { fullName: "Ahmet Yilmaz", phone: "+905551234567" },
+        totalFinalPrice: 450.00,
+        orderLineItems: [
+          { quantity: 1, variant: { name: "Premium T-Shirt" }, finalPrice: 250.00, currencyCode: "TRY" },
+          { quantity: 2, variant: { name: "Cotton Socks" }, finalPrice: 100.00, currencyCode: "TRY" }
+        ]
+      },
+      {
+        customer: { fullName: "Ayse Demir", phone: "+905559876543" },
+        totalFinalPrice: 890.50,
+        orderLineItems: [
+          { quantity: 1, variant: { name: "Winter Jacket" }, finalPrice: 890.50, currencyCode: "TRY" }
+        ]
+      }
+    ];
+
+    const randomOrder = testOrders[Math.floor(Math.random() * testOrders.length)];
+
+    const webhookPayload = {
+      authorizedAppId: store.authorized_app_id,
+      data: JSON.stringify({
+        orderNumber: "TEST-" + Math.floor(Math.random() * 9000 + 1000),
+        customer: randomOrder.customer,
+        totalFinalPrice: randomOrder.totalFinalPrice,
+        currencyCode: "TRY",
+        orderLineItems: randomOrder.orderLineItems,
+        orderedAt: new Date().toISOString()
+      })
+    };
+
+    try {
+      const axios = (await import('axios')).default;
+      const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+        : `http://localhost:${process.env.PORT || 3000}`;
+
+      const response = await axios.post(`${baseUrl}/webhook/order`, webhookPayload);
+
+      const content = `
+        <div class="card">
+          <h2>✅ Test Siparisi Gonderildi!</h2>
+          <p><strong>Magaza:</strong> ${store.store_name}</p>
+          <p><strong>Durum:</strong> ${response.data.ok ? 'Basarili' : 'Basarisiz'}</p>
+          <p><strong>Gonderilen Bildirim Sayisi:</strong> ${response.data.sent || 0}</p>
+
+          <div style="margin-top: 24px;">
+            <a href="/admin" style="display: inline-block; padding: 10px 20px; background: #0066cc; color: white; text-decoration: none; border-radius: 4px;">Dashboard'a Don</a>
+          </div>
+        </div>
+      `;
+
+      res.send(renderPage('Test Siparisi', content));
+    } catch (error) {
+      const content = `
+        <div class="card">
+          <h2>❌ Test Siparisi Hatasi</h2>
+          <p><strong>Hata:</strong> ${error.message}</p>
+
+          <div style="margin-top: 24px;">
+            <a href="/admin" style="display: inline-block; padding: 10px 20px; background: #0066cc; color: white; text-decoration: none; border-radius: 4px;">Dashboard'a Don</a>
+          </div>
+        </div>
+      `;
+
+      res.send(renderPage('Test Siparisi Hatasi', content));
+    }
   });
 }
 
