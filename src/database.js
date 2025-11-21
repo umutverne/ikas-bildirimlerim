@@ -14,9 +14,14 @@ if (USE_POSTGRES) {
   console.log('🗄️  Using PostgreSQL database');
 } else {
   // SQLite for local development
-  const sqlite3 = await import('better-sqlite3');
-  Database = sqlite3.default;
-  console.log('🗄️  Using SQLite database (local development)');
+  try {
+    const sqlite3 = await import('better-sqlite3');
+    Database = sqlite3.default;
+    console.log('🗄️  Using SQLite database (local development)');
+  } catch (error) {
+    console.error('⚠️  SQLite not available. Please set DATABASE_URL for PostgreSQL or install better-sqlite3 for local development.');
+    process.exit(1);
+  }
 }
 
 // Initialize database tables
