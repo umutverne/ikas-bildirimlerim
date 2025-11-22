@@ -5,8 +5,9 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "start": "node src/migrate.js && node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate": "node src/migrate.js"
   },
   "keywords": [
     "ikas",
