@@ -721,18 +721,30 @@ export function setupAdminRoutes(app) {
         document.getElementById('confirmDelete').addEventListener('click', async function() {
           if (!agencyToDelete) return;
 
+          console.log('Deleting agency:', agencyToDelete);
+
           try {
             const response = await fetch('/admin/agencies/delete/' + agencyToDelete, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' }
             });
 
+            console.log('Delete response status:', response.status);
+
             if (response.ok) {
+              const data = await response.json();
+              console.log('Delete response data:', data);
+              closeDeleteModal();
               window.location.reload();
             } else {
-              alert('Silme işlemi başarısız oldu');
+              const errorText = await response.text();
+              console.error('Delete failed:', errorText);
+              closeDeleteModal();
+              alert('Silme işlemi başarısız oldu: ' + errorText);
             }
           } catch (error) {
+            console.error('Delete error:', error);
+            closeDeleteModal();
             alert('Bir hata oluştu: ' + error.message);
           }
         });
@@ -1276,15 +1288,25 @@ export function setupAdminRoutes(app) {
 
   // Delete Agency (Super Admin only)
   app.post('/admin/agencies/delete/:id', requireAuth, requireSuperAdmin, async (req, res) => {
-    const agencyId = parseInt(req.params.id);
+    try {
+      const agencyId = parseInt(req.params.id);
+      console.log('🗑️  Deleting agency:', agencyId);
 
-    const adminUsers = await db_admin_users.getByAgency(agencyId);
-    for (const user of adminUsers) {
-      await db_admin_users.deactivate(user.id);
+      const adminUsers = await db_admin_users.getByAgency(agencyId);
+      console.log(`  Found ${adminUsers.length} admin users to deactivate`);
+
+      for (const user of adminUsers) {
+        await db_admin_users.deactivate(user.id);
+        console.log(`  Deactivated admin user: ${user.email}`);
+      }
+
+      await db_agencies.delete(agencyId);
+      console.log(`✅ Agency ${agencyId} deleted successfully`);
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('❌ Error deleting agency:', error);
+      res.status(500).json({ error: error.message });
     }
-
-    await db_agencies.delete(agencyId);
-
-    res.json({ success: true });
   });
 }
