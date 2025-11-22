@@ -35,7 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_admin_sessions_user ON admin_sessions(admin_user_
 CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON admin_sessions(expires_at);
 
 -- Insert default super admin (password: admin123)
--- bcrypt hash for 'admin123': $2a$10$N9qo8uLOickgx2ZMRZoMye/wlKG5iqL5FZPjEu8.xRm8hzLFJPzHC
+-- bcrypt hash for 'admin123': $2b$10$4dkLNpXXyYcA243TcMv1JO2pFcZc//6P2UVsZhg9ucvwBLyEBUBmO
 INSERT INTO admin_users (email, password_hash, full_name, role, agency_id)
-VALUES ('admin@ikasbildirim.com', '$2a$10$N9qo8uLOickgx2ZMRZoMye/wlKG5iqL5FZPjEu8.xRm8hzLFJPzHC', 'Super Admin', 'super_admin', NULL)
+VALUES ('admin@ikasbildirim.com', '$2b$10$4dkLNpXXyYcA243TcMv1JO2pFcZc//6P2UVsZhg9ucvwBLyEBUBmO', 'Super Admin', 'super_admin', NULL)
 ON CONFLICT (email) DO NOTHING;
