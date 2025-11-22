@@ -189,14 +189,71 @@ export const db_agencies = {
 
   async getAll() {
     if (USE_POSTGRES) {
-      const result = await pool.query('SELECT * FROM agencies ORDER BY created_at DESC');
+      const result = await pool.query(`
+        SELECT a.*,
+               COUNT(DISTINCT s.id)::integer as store_count,
+               au.email as admin_email
+        FROM agencies a
+        LEFT JOIN stores s ON a.id = s.agency_id AND s.active = 1
+        LEFT JOIN admin_users au ON a.id = au.agency_id AND au.role = 'agency_admin' AND au.active = 1
+        GROUP BY a.id, au.email
+        ORDER BY a.created_at DESC
+      `);
       return result.rows;
     } else {
       const db = getDb();
-      const stmt = db.prepare('SELECT * FROM agencies ORDER BY created_at DESC');
+      const stmt = db.prepare(`
+        SELECT a.*,
+               COUNT(DISTINCT s.id) as store_count,
+               au.email as admin_email
+        FROM agencies a
+        LEFT JOIN stores s ON a.id = s.agency_id AND s.active = 1
+        LEFT JOIN admin_users au ON a.id = au.agency_id AND au.role = 'agency_admin' AND au.active = 1
+        GROUP BY a.id, au.email
+        ORDER BY a.created_at DESC
+      `);
       const result = stmt.all();
       db.close();
       return result;
+    }
+  },
+
+  async getById(id) {
+    if (USE_POSTGRES) {
+      const result = await pool.query('SELECT * FROM agencies WHERE id = $1', [id]);
+      return result.rows[0] || null;
+    } else {
+      const db = getDb();
+      const stmt = db.prepare('SELECT * FROM agencies WHERE id = ?');
+      const result = stmt.get(id);
+      db.close();
+      return result || null;
+    }
+  },
+
+  async update(id, name, notes = null) {
+    if (USE_POSTGRES) {
+      await pool.query(
+        'UPDATE agencies SET name = $1, notes = $2 WHERE id = $3',
+        [name, notes, id]
+      );
+    } else {
+      const db = getDb();
+      const stmt = db.prepare('UPDATE agencies SET name = ?, notes = ? WHERE id = ?');
+      stmt.run(name, notes, id);
+      db.close();
+    }
+  },
+
+  async delete(id) {
+    if (USE_POSTGRES) {
+      // Soft delete
+      await pool.query('UPDATE agencies SET active = 0 WHERE id = $1', [id]);
+    } else {
+      const db = getDb();
+      const stmt = db.prepare('UPDATE agencies SET active = 0 WHERE id = ?');
+      stmt.run(id);
+      db.close();
     }
   }
 };
@@ -440,7 +497,8 @@ export const db_notifications = {
       if (storeId) {
         query = `
           SELECT COUNT(*)::integer as total_notifications,
-                 SUM(order_total)::real as total_revenue
+                 SUM(order_total)::real as total_revenue,
+                 SUM(CASE WHEN order_number LIKE 'TEST-%' THEN order_total ELSE 0 END)::real as test_order_revenue
           FROM notifications n
           JOIN users u ON n.user_id = u.id
           WHERE u.store_id = $1
@@ -449,14 +507,15 @@ export const db_notifications = {
       } else {
         query = `
           SELECT COUNT(*)::integer as total_notifications,
-                 SUM(order_total)::real as total_revenue
+                 SUM(order_total)::real as total_revenue,
+                 SUM(CASE WHEN order_number LIKE 'TEST-%' THEN order_total ELSE 0 END)::real as test_order_revenue
           FROM notifications
         `;
         params = [];
       }
 
       const result = await pool.query(query, params);
-      return result.rows[0] || { total_notifications: 0, total_revenue: 0 };
+      return result.rows[0] || { total_notifications: 0, total_revenue: 0, test_order_revenue: 0 };
     } else {
       const db = getDb();
       let query, stmt, result;
@@ -464,7 +523,8 @@ export const db_notifications = {
       if (storeId) {
         query = `
           SELECT COUNT(*) as total_notifications,
-                 SUM(order_total) as total_revenue
+                 SUM(order_total) as total_revenue,
+                 SUM(CASE WHEN order_number LIKE 'TEST-%' THEN order_total ELSE 0 END) as test_order_revenue
           FROM notifications n
           JOIN users u ON n.user_id = u.id
           WHERE u.store_id = ?
@@ -474,7 +534,8 @@ export const db_notifications = {
       } else {
         query = `
           SELECT COUNT(*) as total_notifications,
-                 SUM(order_total) as total_revenue
+                 SUM(order_total) as total_revenue,
+                 SUM(CASE WHEN order_number LIKE 'TEST-%' THEN order_total ELSE 0 END) as test_order_revenue
           FROM notifications
         `;
         stmt = db.prepare(query);
@@ -482,7 +543,7 @@ export const db_notifications = {
       }
 
       db.close();
-      return result || { total_notifications: 0, total_revenue: 0 };
+      return result || { total_notifications: 0, total_revenue: 0, test_order_revenue: 0 };
     }
   }
 };

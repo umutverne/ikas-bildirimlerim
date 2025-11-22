@@ -20,9 +20,13 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^1.7.9",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "pg": "^8.16.3"
+    "express-session": "^1.18.2",
+    "pg": "^8.16.3",
+    "uuid": "^13.0.0"
   },
   "optionalDependencies": {
     "better-sqlite3": "^12.4.5"

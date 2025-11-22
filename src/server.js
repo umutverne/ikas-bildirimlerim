@@ -1,10 +1,12 @@
 import dotenv from 'dotenv';
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import { sendTelegramMessage } from './telegram.js';
 import { formatOrderMessage } from './formatOrderMessage.js';
 import { handleBotUpdate, sendOrderNotification } from './bot.js';
 import { db_stores, db_users, db_notifications } from './database.js';
 import { setupAdminRoutes } from './admin.js';
+import { setupAuthRoutes } from './admin-routes.js';
 
 dotenv.config();
 
@@ -13,9 +15,10 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 app.get('/', (req, res) => {
-  res.redirect('/test');
+  res.redirect('/admin');
 });
 
 app.get('/health', (req, res) => {
@@ -337,6 +340,7 @@ app.post('/webhook/order', async (req, res) => {
   }
 });
 
+setupAuthRoutes(app);
 setupAdminRoutes(app);
 
 app.use((req, res) => {

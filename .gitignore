@@ -12,8 +12,18 @@ yarn-error.log*
 *~
 .claude/
 
-KURULUM.md
-DEPLOYMENT.md
-IKAS-SETUP.md
-test-orders.json
+# Database files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
 data/
+
+# Temporary files
+nul
+src/admin-old.js
+src/admin-new.js
+create_admin_table.js
+
+# Documentation (if needed)
+test-orders.json

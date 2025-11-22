@@ -1,97 +1,44 @@
 # IKAS Bildirimlerim
 
-Multi-channel order notification service for IKAS e-commerce platform.
+Multi-tenant SaaS platformu - IKAS mağazaları için Telegram sipariş bildirimleri.
 
-## Features
+## Özellikler
 
-- Real-time order notifications via Telegram
-- Multi-language support (Turkish/English)
-- Multiple recipient support
-- Order filtering by minimum amount
-- Retry mechanism for failed deliveries
-- Docker support
+- 🏢 Çoklu ajans ve mağaza yönetimi
+- 📱 Telegram bot entegrasyonu
+- 🔔 Gerçek zamanlı sipariş bildirimleri
+- 👥 Rol tabanlı yetkilendirme (Super Admin / Agency Admin)
+- 📊 Dashboard ve raporlama
+- 🔐 Güvenli oturum yönetimi
 
-## Quick Start
-
-### 1. Install Dependencies
+## Kurulum
 
 ```bash
 npm install
 ```
 
-### 2. Configure Environment
+## Çalıştırma
 
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and set your configuration:
-
-```env
-PORT=3000
-LANGUAGE=tr
-MIN_ORDER_AMOUNT=0
-
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_CHAT_ID=your_chat_id
-```
-
-### 3. Run
-
-**Development:**
-```bash
-npm run dev
-```
-
-**Production:**
 ```bash
 npm start
 ```
 
-## API Endpoints
+## Ortam Değişkenleri
 
-### Health Check
-```
-GET /health
-```
-
-### Test Notification
-```
-GET /test
+```env
+TELEGRAM_BOT_TOKEN=your_bot_token
+DATABASE_URL=your_postgresql_url (opsiyonel, yoksa SQLite kullanır)
+PORT=3000
+NODE_ENV=production
 ```
 
-Sends a test notification to verify your Telegram setup. Open in browser to test.
+## Teknolojiler
 
-### Order Webhook
-```
-POST /webhook/order
-```
+- Node.js + Express
+- PostgreSQL / SQLite
+- Telegram Bot API
+- IKAS GraphQL API
 
-Accepts order data and sends notifications to configured channels.
+## Lisans
 
-## Configuration
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `PORT` | Server port | No (default: 3000) |
-| `LANGUAGE` | Notification language (tr/en) | No (default: tr) |
-| `MIN_ORDER_AMOUNT` | Minimum order amount to notify | No (default: 0) |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token | Yes |
-| `TELEGRAM_CHAT_ID` | Chat IDs (comma-separated) | Yes |
-
-## Docker
-
-```bash
-docker-compose up -d
-```
-
-## Telegram Setup
-
-1. Create bot with @BotFather
-2. Get bot token
-3. Message your bot
-4. Get chat ID from `https://api.telegram.org/bot<TOKEN>/getUpdates`
-
-## License
-
-MIT
+Proprietary
