@@ -679,11 +679,11 @@ export function setupAdminRoutes(app) {
                       <a href="/admin/agencies/edit/${a.id}" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">
                         ✏️ Düzenle
                       </a>
-                      <a href="/admin/agencies/delete/${a.id}"
-                         onclick="return confirm('${a.name} ajansını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')"
-                         class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;">
+                      <button
+                         onclick="deleteAgency(${a.id}, '${a.name.replace(/'/g, "\\'")}')"
+                         class="btn btn-danger" style="padding: 6px 12px; font-size: 12px; border: none; cursor: pointer;">
                         🗑️ Sil
-                      </a>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -692,6 +692,51 @@ export function setupAdminRoutes(app) {
           </table>
         </div>
       </div>
+
+      <div id="deleteModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 12px; padding: 32px; max-width: 480px; width: 90%;">
+          <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 12px;">Ajansı Sil</h2>
+          <p id="deleteMessage" style="color: #71717A; margin-bottom: 24px;"></p>
+          <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button onclick="closeDeleteModal()" class="btn" style="background: #E4E4E7; color: #18181B;">İptal</button>
+            <button id="confirmDelete" class="btn btn-danger">Sil</button>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        let agencyToDelete = null;
+
+        function deleteAgency(id, name) {
+          agencyToDelete = id;
+          document.getElementById('deleteMessage').textContent = name + ' ajansını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.';
+          document.getElementById('deleteModal').style.display = 'flex';
+        }
+
+        function closeDeleteModal() {
+          document.getElementById('deleteModal').style.display = 'none';
+          agencyToDelete = null;
+        }
+
+        document.getElementById('confirmDelete').addEventListener('click', async function() {
+          if (!agencyToDelete) return;
+
+          try {
+            const response = await fetch('/admin/agencies/delete/' + agencyToDelete, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (response.ok) {
+              window.location.reload();
+            } else {
+              alert('Silme işlemi başarısız oldu');
+            }
+          } catch (error) {
+            alert('Bir hata oluştu: ' + error.message);
+          }
+        });
+      </script>
     `;
 
     res.send(renderPage('Ajanslar', content, req.session));
@@ -1230,19 +1275,16 @@ export function setupAdminRoutes(app) {
   });
 
   // Delete Agency (Super Admin only)
-  app.get('/admin/agencies/delete/:id', requireAuth, requireSuperAdmin, async (req, res) => {
-    const agencyId = req.params.id;
+  app.post('/admin/agencies/delete/:id', requireAuth, requireSuperAdmin, async (req, res) => {
+    const agencyId = parseInt(req.params.id);
 
-    // Soft delete the agency
-    await db_agencies.delete(agencyId);
-
-    // Also deactivate admin users for this agency
     const adminUsers = await db_admin_users.getByAgency(agencyId);
     for (const user of adminUsers) {
-      // Deactivate user - you need to add this method
-      // For now we'll skip
+      await db_admin_users.deactivate(user.id);
     }
 
-    res.redirect('/admin/agencies');
+    await db_agencies.delete(agencyId);
+
+    res.json({ success: true });
   });
 }

@@ -85,5 +85,15 @@ export const db_admin_users = {
       const stmt = db.prepare('UPDATE admin_users SET password_hash = ?, must_change_password = ? WHERE id = ?');
       stmt.run(password_hash, must_change_password ? 1 : 0, id);
     }
+  },
+
+  async deactivate(id) {
+    if (USE_POSTGRES) {
+      await pool.query('UPDATE admin_users SET active = 0 WHERE id = $1', [id]);
+    } else {
+      const db = new Database('data.db');
+      const stmt = db.prepare('UPDATE admin_users SET active = 0 WHERE id = ?');
+      stmt.run(id);
+    }
   }
 };
