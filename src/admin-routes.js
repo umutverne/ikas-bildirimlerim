@@ -63,9 +63,11 @@ function renderLoginPage(error = null) {
           </button>
         </form>
 
-        <p class="text-center text-sm text-gray-500 mt-6">
-          Varsayılan giriş: admin@ikasbildirim.com / admin123
-        </p>
+        <div class="mt-6 text-center">
+          <p class="text-xs text-gray-400">
+            © ${new Date().getFullYear()} IKAS Bildirimlerim - Tüm hakları saklıdır
+          </p>
+        </div>
       </div>
     </body>
     </html>
