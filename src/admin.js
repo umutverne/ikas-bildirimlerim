@@ -1221,32 +1221,46 @@ export function setupAdminRoutes(app) {
 
   // Update Agency (Super Admin only)
   app.post('/admin/agencies/update/:id', requireAuth, requireSuperAdmin, async (req, res) => {
-    const agencyId = req.params.id;
-    const { agency_name, notes, admin_full_name, reset_password } = req.body;
+    try {
+      const agencyId = parseInt(req.params.id);
+      const { agency_name, notes, admin_full_name, reset_password } = req.body;
 
-    // Update agency
-    await db_agencies.update(agencyId, agency_name, notes || null);
+      console.log('📝 Updating agency:', agencyId);
+      console.log('  Agency name:', agency_name);
+      console.log('  Admin full name:', admin_full_name);
+      console.log('  Reset password:', reset_password);
 
-    // Update admin user if exists
-    const adminUsers = await db_admin_users.getByAgency(agencyId);
-    if (adminUsers.length > 0) {
-      const adminUser = adminUsers[0];
+      // Update agency
+      await db_agencies.update(agencyId, agency_name, notes || null);
+      console.log('✅ Agency updated');
 
-      // Update full name if changed
-      if (admin_full_name && admin_full_name !== adminUser.full_name) {
-        // You need to add an update method for admin users
-        // For now, we'll skip this
+      // Update admin user if exists
+      const adminUsers = await db_admin_users.getByAgency(agencyId);
+      let tempPassword = null;
+
+      if (adminUsers.length > 0) {
+        const adminUser = adminUsers[0];
+
+        // Update full name if changed
+        if (admin_full_name && admin_full_name !== adminUser.full_name) {
+          await db_admin_users.update(adminUser.id, admin_full_name);
+          console.log('✅ Admin full name updated:', admin_full_name);
+        }
+
+        // Reset password if requested
+        if (reset_password === '1') {
+          const crypto = await import('crypto');
+          tempPassword = crypto.default.randomBytes(4).toString('hex').toUpperCase();
+          const { hashPassword } = await import('./auth.js');
+          const passwordHash = await hashPassword(tempPassword);
+
+          await db_admin_users.updatePassword(adminUser.id, passwordHash, true);
+          console.log('✅ Admin password reset with temp password');
+        }
       }
 
-      // Reset password if requested
-      if (reset_password === '1') {
-        const crypto = await import('crypto');
-        const tempPassword = crypto.default.randomBytes(4).toString('hex').toUpperCase();
-        const { hashPassword } = await import('./auth.js');
-        const passwordHash = await hashPassword(tempPassword);
-
-        await db_admin_users.updatePassword(adminUser.id, passwordHash, true);
-
+      // If password was reset, show success page with password
+      if (tempPassword) {
         const content = `
           <div class="page-header">
             <h1 class="page-title">✅ Ajans Güncellendi!</h1>
@@ -1260,17 +1274,15 @@ export function setupAdminRoutes(app) {
           <div class="card">
             <div class="card-body">
               <p><strong>Ajans:</strong> ${agency_name}</p>
-              ${reset_password === '1' ? `
-                <div style="margin-top: 24px; padding: 16px; background: #FAFAFA; border: 2px dashed #E4E4E7; border-radius: 8px;">
-                  <p style="font-weight: 600; margin-bottom: 8px;">🔑 Yeni Geçici Şifre</p>
-                  <div style="font-family: 'Courier New', monospace; font-size: 24px; font-weight: 700; color: #3B82F6; padding: 12px; background: white; border-radius: 6px; border: 1px solid #E4E4E7; text-align: center; letter-spacing: 2px;">
-                    ${tempPassword}
-                  </div>
-                  <p style="margin-top: 12px; font-size: 13px; color: #71717A;">
-                    ⚠️ Bu şifreyi ajans yöneticisiyle paylaşın. İlk girişte şifre değiştirme zorunludur.
-                  </p>
+              <div style="margin-top: 24px; padding: 16px; background: #FAFAFA; border: 2px dashed #E4E4E7; border-radius: 8px;">
+                <p style="font-weight: 600; margin-bottom: 8px;">🔑 Yeni Geçici Şifre</p>
+                <div style="font-family: 'Courier New', monospace; font-size: 24px; font-weight: 700; color: #3B82F6; padding: 12px; background: white; border-radius: 6px; border: 1px solid #E4E4E7; text-align: center; letter-spacing: 2px;">
+                  ${tempPassword}
                 </div>
-              ` : ''}
+                <p style="margin-top: 12px; font-size: 13px; color: #71717A;">
+                  ⚠️ Bu şifreyi ajans yöneticisiyle paylaşın. İlk girişte şifre değiştirme zorunludur.
+                </p>
+              </div>
 
               <div style="margin-top: 24px;">
                 <a href="/admin/agencies" class="btn btn-primary">Ajanslar Listesine Dön</a>
@@ -1281,9 +1293,14 @@ export function setupAdminRoutes(app) {
 
         return res.send(renderPage('Ajans Güncellendi', content, req.session));
       }
-    }
 
-    res.redirect('/admin/agencies');
+      // Otherwise just redirect back to agencies list
+      console.log('✅ Update complete, redirecting to agencies list');
+      res.redirect('/admin/agencies');
+    } catch (error) {
+      console.error('❌ Error updating agency:', error);
+      res.status(500).send(`Error updating agency: ${error.message}`);
+    }
   });
 
   // Delete Agency (Super Admin only)

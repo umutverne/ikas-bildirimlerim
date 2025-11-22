@@ -87,6 +87,16 @@ export const db_admin_users = {
     }
   },
 
+  async update(id, full_name) {
+    if (USE_POSTGRES) {
+      await pool.query('UPDATE admin_users SET full_name = $1 WHERE id = $2', [full_name, id]);
+    } else {
+      const db = new Database('data.db');
+      const stmt = db.prepare('UPDATE admin_users SET full_name = ? WHERE id = ?');
+      stmt.run(full_name, id);
+    }
+  },
+
   async deactivate(id) {
     if (USE_POSTGRES) {
       await pool.query('UPDATE admin_users SET active = 0 WHERE id = $1', [id]);
