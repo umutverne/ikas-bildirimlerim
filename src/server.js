@@ -271,6 +271,15 @@ app.get('/test', async (req, res) => {
 
 app.post('/webhook/order', async (req, res) => {
   try {
+    const webhookSecret = process.env.WEBHOOK_SECRET;
+    if (webhookSecret) {
+      const providedSecret = req.headers['x-webhook-secret'];
+      if (providedSecret !== webhookSecret) {
+        console.warn('⚠️  Invalid webhook secret');
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+    }
+
     const orderData = req.body;
 
     let parsedData = orderData;

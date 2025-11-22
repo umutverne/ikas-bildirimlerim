@@ -3,6 +3,10 @@ import { db_stores, db_users } from './database.js';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
+const failedAttempts = new Map();
+const RATE_LIMIT_MAX_ATTEMPTS = 5;
+const RATE_LIMIT_TIMEOUT = 10 * 60 * 1000;
+
 async function sendMessage(chatId, text, parseMode = null) {
   try {
     if (!BOT_TOKEN) {
@@ -98,9 +102,36 @@ async function handleStart(chatId, firstName) {
 }
 
 async function handleConnect(chatId, code, firstName, lastName, username) {
+  const attemptKey = chatId.toString();
+  const now = Date.now();
+
+  if (failedAttempts.has(attemptKey)) {
+    const attempt = failedAttempts.get(attemptKey);
+    if (now - attempt.timestamp < RATE_LIMIT_TIMEOUT) {
+      if (attempt.count >= RATE_LIMIT_MAX_ATTEMPTS) {
+        const remainingMs = RATE_LIMIT_TIMEOUT - (now - attempt.timestamp);
+        const remainingMin = Math.ceil(remainingMs / 60000);
+        await sendMessage(chatId,
+          `⏱️ *Cok Fazla Hatali Deneme!*\n\n` +
+          `Lutfen ${remainingMin} dakika sonra tekrar dene.\n\n` +
+          `Yardim icin: /yardim`,
+          'Markdown'
+        );
+        return;
+      }
+    } else {
+      failedAttempts.delete(attemptKey);
+    }
+  }
+
   const store = await db_stores.getByLinkCode(code);
 
   if (!store) {
+    const attempt = failedAttempts.get(attemptKey) || { count: 0, timestamp: now };
+    attempt.count++;
+    attempt.timestamp = now;
+    failedAttempts.set(attemptKey, attempt);
+
     await sendMessage(chatId,
       `❌ *Gecersiz Kod!*\n\n` +
       `Girdigin kod: \`${code}\`\n\n` +
@@ -112,6 +143,8 @@ async function handleConnect(chatId, code, firstName, lastName, username) {
     );
     return;
   }
+
+  failedAttempts.delete(attemptKey);
 
   const result = await db_users.create(store.id, chatId, firstName, lastName, username);
 

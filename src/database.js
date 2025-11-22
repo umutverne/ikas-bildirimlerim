@@ -141,7 +141,7 @@ async function initDatabase() {
 await initDatabase();
 
 function generateCode() {
-  return crypto.randomBytes(4).toString('hex').toUpperCase();
+  return crypto.randomBytes(8).toString('hex').toUpperCase();
 }
 
 // Database helper functions
@@ -542,6 +542,37 @@ export const db_notifications = {
         result = stmt.get();
       }
 
+      db.close();
+      return result || { total_notifications: 0, total_revenue: 0, test_order_revenue: 0 };
+    }
+  },
+
+  async getStatsByAgency(agencyId) {
+    if (USE_POSTGRES) {
+      const query = `
+        SELECT COUNT(*)::integer as total_notifications,
+               SUM(n.order_total)::real as total_revenue,
+               SUM(CASE WHEN n.order_number LIKE 'TEST-%' THEN n.order_total ELSE 0 END)::real as test_order_revenue
+        FROM notifications n
+        JOIN users u ON n.user_id = u.id
+        JOIN stores s ON u.store_id = s.id
+        WHERE s.agency_id = $1
+      `;
+      const result = await pool.query(query, [agencyId]);
+      return result.rows[0] || { total_notifications: 0, total_revenue: 0, test_order_revenue: 0 };
+    } else {
+      const db = getDb();
+      const query = `
+        SELECT COUNT(*) as total_notifications,
+               SUM(n.order_total) as total_revenue,
+               SUM(CASE WHEN n.order_number LIKE 'TEST-%' THEN n.order_total ELSE 0 END) as test_order_revenue
+        FROM notifications n
+        JOIN users u ON n.user_id = u.id
+        JOIN stores s ON u.store_id = s.id
+        WHERE s.agency_id = ?
+      `;
+      const stmt = db.prepare(query);
+      const result = stmt.get(agencyId);
       db.close();
       return result || { total_notifications: 0, total_revenue: 0, test_order_revenue: 0 };
     }

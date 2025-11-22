@@ -544,7 +544,7 @@ export function setupAdminRoutes(app) {
     }
 
     const allUsers = stores.reduce((sum, s) => sum + s.user_count, 0);
-    const stats = await db_notifications.getStats();
+    const stats = isSuperAdmin ? await db_notifications.getStats() : await db_notifications.getStatsByAgency(agencyId);
 
     // Filter test orders from total revenue
     const testOrderRevenue = stats.test_order_revenue || 0;
