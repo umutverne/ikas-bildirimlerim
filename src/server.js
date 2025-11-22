@@ -311,8 +311,15 @@ app.post('/webhook/order', async (req, res) => {
     }
 
     const orderTotal = parsedData.totalFinalPrice || parsedData.total || 0;
+    const minAmount = parseFloat(process.env.MIN_ORDER_AMOUNT) || 0;
+
+    if (minAmount > 0 && orderTotal < minAmount) {
+      console.log(`💰 Order total ${orderTotal} < MIN_ORDER_AMOUNT ${minAmount}, skipping notifications`);
+      return res.status(200).json({ ok: true, skipped: true, reason: 'Below min amount' });
+    }
+
     const lang = process.env.LANGUAGE || 'tr';
-    const message = formatOrderMessage(orderData, lang);
+    const message = formatOrderMessage(parsedData, lang);
 
     let sentCount = 0;
 

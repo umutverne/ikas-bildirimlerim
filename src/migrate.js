@@ -35,7 +35,7 @@ async function runMigrations() {
     const migrationsDir = path.join(__dirname, '../migrations');
     console.log('📁 Migrations directory:', migrationsDir);
 
-    const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+    const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql') && !f.startsWith('000_')).sort();
     console.log('📋 Found migrations:', files.join(', '));
 
     for (const file of files) {
