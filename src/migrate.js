@@ -16,16 +16,27 @@ async function runMigrations() {
   }
 
   console.log('🔄 Running PostgreSQL migrations...');
+  console.log('📡 Database URL:', process.env.DATABASE_URL ? 'Set ✅' : 'Not set ❌');
 
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-  });
-
+  let pool;
   try {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      connectionTimeoutMillis: 10000
+    });
+
+    // Test connection
+    console.log('🔌 Testing database connection...');
+    await pool.query('SELECT NOW()');
+    console.log('✅ Database connection successful');
+
     // Read all migration files
     const migrationsDir = path.join(__dirname, '../migrations');
+    console.log('📁 Migrations directory:', migrationsDir);
+
     const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+    console.log('📋 Found migrations:', files.join(', '));
 
     for (const file of files) {
       console.log(`📄 Running migration: ${file}`);
@@ -36,15 +47,21 @@ async function runMigrations() {
 
     console.log('✅ All migrations completed successfully!');
   } catch (error) {
-    console.error('❌ Migration failed:', error);
-    throw error;
+    console.error('❌ Migration failed:', error.message);
+    console.error('Stack:', error.stack);
+    // Don't throw - let the server start anyway
+    console.warn('⚠️  Continuing despite migration error...');
   } finally {
-    await pool.end();
+    if (pool) {
+      await pool.end();
+      console.log('🔌 Database connection closed');
+    }
   }
 }
 
-// Run migrations
+// Run migrations - don't exit on error
 runMigrations().catch(error => {
-  console.error('Fatal error during migration:', error);
-  process.exit(1);
+  console.error('Fatal error during migration:', error.message);
+  // Don't exit - let server start
+  console.warn('⚠️  Migration error ignored, server will start...');
 });
