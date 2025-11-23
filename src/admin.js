@@ -883,13 +883,9 @@ export function setupAdminRoutes(app) {
             <label>Mağaza Adı:</label>
             <input type="text" name="store_name" required placeholder="Örnek: Test Mağazam" />
 
-            <label>IKAS Access Token (Bearer Token):</label>
-            <input type="text" name="ikas_token" placeholder="Opsiyonel - IKAS API token" />
-            <small>IKAS Admin Panel → Ayarlar → API'den alabilirsiniz</small>
-
             <label>IKAS Authorized App ID:</label>
             <input type="text" name="authorized_app_id" required placeholder="test-store-12345" />
-            <small>Token yoksa herhangi bir ID yazabilirsiniz</small>
+            <small>IKAS mağaza ID'nizi girin</small>
 
             <button type="submit" class="btn btn-primary">Mağaza Oluştur</button>
           </form>
@@ -902,7 +898,7 @@ export function setupAdminRoutes(app) {
 
   // Create Store
   app.post('/admin/stores/create', requireAuth, async (req, res) => {
-    const { store_name, authorized_app_id, ikas_token, agency_id } = req.body;
+    const { store_name, authorized_app_id, agency_id } = req.body;
     const isSuperAdmin = req.session.role === 'super_admin';
 
     let finalAgencyId = agency_id;
@@ -921,14 +917,10 @@ export function setupAdminRoutes(app) {
       }
     }
 
-    const store = await db_stores.create(finalAgencyId, store_name, authorized_app_id, ikas_token || null);
+    const store = await db_stores.create(finalAgencyId, store_name, authorized_app_id, null);
 
     const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'ikasbildirimlerim_bot';
     const botLink = `https://t.me/${botUsername}`;
-
-    const webhookSetupButton = ikas_token
-      ? `<a href="/admin/setup-webhook/${store.id}" class="btn btn-success" style="margin-right: 8px;">🔗 IKAS Webhook Kur</a>`
-      : '';
 
     const content = `
       <div class="page-header">
@@ -950,8 +942,7 @@ export function setupAdminRoutes(app) {
             <li>Sipariş bildirimleri başlasın! 🎉</li>
           </ol>
 
-          <div style="margin-top: 32px; display: flex; gap: 8px;">
-            ${webhookSetupButton}
+          <div style="margin-top: 32px;">
             <a href="/admin" class="btn btn-primary">Dashboard'a Dön</a>
           </div>
         </div>
