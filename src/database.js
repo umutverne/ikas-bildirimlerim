@@ -247,13 +247,291 @@ export const db_agencies = {
 
   async delete(id) {
     if (USE_POSTGRES) {
-      // Soft delete
-      await pool.query('UPDATE agencies SET active = 0 WHERE id = $1', [id]);
+      await pool.query('DELETE FROM agencies WHERE id = $1', [id]);
     } else {
       const db = getDb();
-      const stmt = db.prepare('UPDATE agencies SET active = 0 WHERE id = ?');
+      const stmt = db.prepare('DELETE FROM agencies WHERE id = ?');
       stmt.run(id);
       db.close();
+    }
+  },
+
+  async updateStatus(id, active) {
+    if (USE_POSTGRES) {
+      await pool.query('UPDATE agencies SET active = $1 WHERE id = $2', [active ? 1 : 0, id]);
+    } else {
+      const db = getDb();
+      const stmt = db.prepare('UPDATE agencies SET active = ? WHERE id = ?');
+      stmt.run(active ? 1 : 0, id);
+      db.close();
+    }
+  },
+
+  async updateFull(id, name, notes, active) {
+    if (USE_POSTGRES) {
+      await pool.query(
+        'UPDATE agencies SET name = $1, notes = $2, active = $3 WHERE id = $4',
+        [name, notes, active ? 1 : 0, id]
+      );
+    } else {
+      const db = getDb();
+      const stmt = db.prepare('UPDATE agencies SET name = ?, notes = ?, active = ? WHERE id = ?');
+      stmt.run(name, notes, active ? 1 : 0, id);
+      db.close();
+    }
+  },
+
+  async getOverviewStats() {
+    if (USE_POSTGRES) {
+      const result = await pool.query(`
+        SELECT
+          (SELECT COUNT(*)::integer FROM agencies WHERE active = 1) as total_agencies,
+          (SELECT COUNT(*)::integer FROM stores WHERE active = 1) as total_stores,
+          (SELECT COUNT(*)::integer FROM users WHERE active = 1) as total_users,
+          (SELECT COUNT(*)::integer FROM notifications WHERE sent_at >= NOW() - interval '30 days') as total_notifications_last_30_days
+      `);
+      return result.rows[0];
+    } else {
+      const db = getDb();
+      const agencies = db.prepare('SELECT COUNT(*) as count FROM agencies WHERE active = 1').get();
+      const stores = db.prepare('SELECT COUNT(*) as count FROM stores WHERE active = 1').get();
+      const users = db.prepare('SELECT COUNT(*) as count FROM users WHERE active = 1').get();
+      const notifications = db.prepare("SELECT COUNT(*) as count FROM notifications WHERE sent_at >= datetime('now', '-30 days')").get();
+      db.close();
+      return {
+        total_agencies: agencies.count,
+        total_stores: stores.count,
+        total_users: users.count,
+        total_notifications_last_30_days: notifications.count
+      };
+    }
+  },
+
+  async getAgenciesWithStats(search, status, page, perPage) {
+    const offset = (page - 1) * perPage;
+    let whereClause = '';
+    let params = [];
+
+    if (USE_POSTGRES) {
+      const conditions = [];
+      let paramIndex = 1;
+
+      if (status === 'active') {
+        conditions.push('a.active = 1');
+      } else if (status === 'inactive') {
+        conditions.push('a.active = 0');
+      }
+
+      if (search) {
+        conditions.push(`(a.name ILIKE $${paramIndex} OR au.email ILIKE $${paramIndex})`);
+        params.push(`%${search}%`);
+        paramIndex++;
+      }
+
+      if (conditions.length > 0) {
+        whereClause = 'WHERE ' + conditions.join(' AND ');
+      }
+
+      const countQuery = `
+        SELECT COUNT(DISTINCT a.id)::integer as count
+        FROM agencies a
+        LEFT JOIN admin_users au ON a.id = au.agency_id AND au.role = 'agency_admin' AND au.active = 1
+        ${whereClause}
+      `;
+
+      const countResult = await pool.query(countQuery, params);
+      const totalItems = countResult.rows[0].count;
+
+      const dataQuery = `
+        SELECT
+          a.id,
+          a.name,
+          a.active,
+          a.created_at,
+          au.email as admin_email,
+          COUNT(DISTINCT s.id)::integer as store_count,
+          COUNT(DISTINCT u.id)::integer as user_count,
+          COUNT(DISTINCT CASE WHEN n.sent_at >= NOW() - interval '30 days' THEN n.id END)::integer as notification_count_last_30_days
+        FROM agencies a
+        LEFT JOIN admin_users au ON a.id = au.agency_id AND au.role = 'agency_admin' AND au.active = 1
+        LEFT JOIN stores s ON a.id = s.agency_id AND s.active = 1
+        LEFT JOIN users u ON s.id = u.store_id AND u.active = 1
+        LEFT JOIN notifications n ON u.id = n.user_id
+        ${whereClause}
+        GROUP BY a.id, a.name, a.active, a.created_at, au.email
+        ORDER BY a.created_at DESC
+        LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+      `;
+
+      const dataResult = await pool.query(dataQuery, [...params, perPage, offset]);
+
+      return {
+        items: dataResult.rows,
+        total_items: totalItems,
+        total_pages: Math.ceil(totalItems / perPage)
+      };
+    } else {
+      const conditions = [];
+      const searchParams = [];
+
+      if (status === 'active') {
+        conditions.push('a.active = 1');
+      } else if (status === 'inactive') {
+        conditions.push('a.active = 0');
+      }
+
+      if (search) {
+        conditions.push('(a.name LIKE ? OR au.email LIKE ?)');
+        searchParams.push(`%${search}%`, `%${search}%`);
+      }
+
+      if (conditions.length > 0) {
+        whereClause = 'WHERE ' + conditions.join(' AND ');
+      }
+
+      const db = getDb();
+
+      const countQuery = `
+        SELECT COUNT(DISTINCT a.id) as count
+        FROM agencies a
+        LEFT JOIN admin_users au ON a.id = au.agency_id AND au.role = 'agency_admin' AND au.active = 1
+        ${whereClause}
+      `;
+
+      const countResult = db.prepare(countQuery).get(...searchParams);
+      const totalItems = countResult.count;
+
+      const dataQuery = `
+        SELECT
+          a.id,
+          a.name,
+          a.active,
+          a.created_at,
+          au.email as admin_email,
+          COUNT(DISTINCT s.id) as store_count,
+          COUNT(DISTINCT u.id) as user_count,
+          COUNT(DISTINCT CASE WHEN n.sent_at >= datetime('now', '-30 days') THEN n.id END) as notification_count_last_30_days
+        FROM agencies a
+        LEFT JOIN admin_users au ON a.id = au.agency_id AND au.role = 'agency_admin' AND au.active = 1
+        LEFT JOIN stores s ON a.id = s.agency_id AND s.active = 1
+        LEFT JOIN users u ON s.id = u.store_id AND u.active = 1
+        LEFT JOIN notifications n ON u.id = n.user_id
+        ${whereClause}
+        GROUP BY a.id, a.name, a.active, a.created_at, au.email
+        ORDER BY a.created_at DESC
+        LIMIT ? OFFSET ?
+      `;
+
+      const items = db.prepare(dataQuery).all(...searchParams, perPage, offset);
+      db.close();
+
+      return {
+        items,
+        total_items: totalItems,
+        total_pages: Math.ceil(totalItems / perPage)
+      };
+    }
+  },
+
+  async getAgencyDetailWithStats(id) {
+    if (USE_POSTGRES) {
+      const agencyResult = await pool.query('SELECT * FROM agencies WHERE id = $1', [id]);
+      if (agencyResult.rows.length === 0) return null;
+
+      const agency = agencyResult.rows[0];
+
+      const adminsResult = await pool.query(
+        'SELECT id, full_name, email, role, active, last_login FROM admin_users WHERE agency_id = $1',
+        [id]
+      );
+
+      const statsResult = await pool.query(`
+        SELECT
+          COUNT(DISTINCT s.id)::integer as store_count,
+          COUNT(DISTINCT u.id)::integer as user_count
+        FROM stores s
+        LEFT JOIN users u ON s.id = u.store_id AND u.active = 1
+        WHERE s.agency_id = $1 AND s.active = 1
+      `, [id]);
+
+      return {
+        ...agency,
+        admins: adminsResult.rows,
+        store_count: statsResult.rows[0].store_count,
+        user_count: statsResult.rows[0].user_count
+      };
+    } else {
+      const db = getDb();
+      const agency = db.prepare('SELECT * FROM agencies WHERE id = ?').get(id);
+      if (!agency) {
+        db.close();
+        return null;
+      }
+
+      const admins = db.prepare('SELECT id, full_name, email, role, active, last_login FROM admin_users WHERE agency_id = ?').all(id);
+
+      const stats = db.prepare(`
+        SELECT
+          COUNT(DISTINCT s.id) as store_count,
+          COUNT(DISTINCT u.id) as user_count
+        FROM stores s
+        LEFT JOIN users u ON s.id = u.store_id AND u.active = 1
+        WHERE s.agency_id = ? AND s.active = 1
+      `).get(id);
+
+      db.close();
+
+      return {
+        ...agency,
+        admins,
+        store_count: stats.store_count,
+        user_count: stats.user_count
+      };
+    }
+  },
+
+  async getAgencyStores(agencyId) {
+    if (USE_POSTGRES) {
+      const result = await pool.query(`
+        SELECT
+          s.id,
+          s.store_name,
+          s.authorized_app_id,
+          s.link_code,
+          s.active,
+          s.created_at,
+          COUNT(DISTINCT u.id)::integer as user_count,
+          MAX(n.sent_at) as last_notification_at
+        FROM stores s
+        LEFT JOIN users u ON s.id = u.store_id AND u.active = 1
+        LEFT JOIN notifications n ON u.id = n.user_id
+        WHERE s.agency_id = $1
+        GROUP BY s.id, s.store_name, s.authorized_app_id, s.link_code, s.active, s.created_at
+        ORDER BY s.created_at DESC
+      `, [agencyId]);
+
+      return result.rows;
+    } else {
+      const db = getDb();
+      const stores = db.prepare(`
+        SELECT
+          s.id,
+          s.store_name,
+          s.authorized_app_id,
+          s.link_code,
+          s.active,
+          s.created_at,
+          COUNT(DISTINCT u.id) as user_count,
+          MAX(n.sent_at) as last_notification_at
+        FROM stores s
+        LEFT JOIN users u ON s.id = u.store_id AND u.active = 1
+        LEFT JOIN notifications n ON u.id = n.user_id
+        WHERE s.agency_id = ?
+        GROUP BY s.id, s.store_name, s.authorized_app_id, s.link_code, s.active, s.created_at
+        ORDER BY s.created_at DESC
+      `).all(agencyId);
+      db.close();
+      return stores;
     }
   }
 };

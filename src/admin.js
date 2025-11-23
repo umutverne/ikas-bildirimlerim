@@ -1303,6 +1303,171 @@ export function setupAdminRoutes(app) {
     }
   });
 
+  app.get('/admin/api/overview', requireAuth, async (req, res) => {
+    try {
+      if (req.session.role !== 'super_admin') {
+        return res.status(403).json({ ok: false, error: 'Forbidden' });
+      }
+
+      const stats = await db_agencies.getOverviewStats();
+
+      res.json({
+        ok: true,
+        data: stats
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  app.get('/admin/api/agencies', requireAuth, async (req, res) => {
+    try {
+      if (req.session.role !== 'super_admin') {
+        return res.status(403).json({ ok: false, error: 'Forbidden' });
+      }
+
+      const search = req.query.search || '';
+      const status = req.query.status || 'all';
+      const page = parseInt(req.query.page) || 1;
+      const perPage = parseInt(req.query.per_page) || 20;
+
+      const result = await db_agencies.getAgenciesWithStats(search, status, page, perPage);
+
+      res.json({
+        ok: true,
+        data: {
+          items: result.items,
+          pagination: {
+            page,
+            per_page: perPage,
+            total_items: result.total_items,
+            total_pages: result.total_pages
+          }
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  app.get('/admin/api/agencies/:id', requireAuth, async (req, res) => {
+    try {
+      if (req.session.role !== 'super_admin') {
+        return res.status(403).json({ ok: false, error: 'Forbidden' });
+      }
+
+      const agencyId = parseInt(req.params.id);
+      const agency = await db_agencies.getAgencyDetailWithStats(agencyId);
+
+      if (!agency) {
+        return res.status(404).json({ ok: false, error: 'Agency not found' });
+      }
+
+      res.json({
+        ok: true,
+        data: agency
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  app.get('/admin/api/agencies/:id/stores', requireAuth, async (req, res) => {
+    try {
+      if (req.session.role !== 'super_admin') {
+        return res.status(403).json({ ok: false, error: 'Forbidden' });
+      }
+
+      const agencyId = parseInt(req.params.id);
+      const stores = await db_agencies.getAgencyStores(agencyId);
+
+      res.json({
+        ok: true,
+        data: {
+          items: stores
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  app.post('/admin/api/agencies', requireAuth, async (req, res) => {
+    try {
+      if (req.session.role !== 'super_admin') {
+        return res.status(403).json({ ok: false, error: 'Forbidden' });
+      }
+
+      const { name, admin_email, admin_full_name } = req.body;
+
+      if (!name || !admin_email) {
+        return res.status(400).json({ ok: false, error: 'Name and admin_email are required' });
+      }
+
+      const agency = await db_agencies.create(name);
+
+      const tempPassword = crypto.randomBytes(4).toString('hex').toUpperCase();
+      const passwordHash = await hashPassword(tempPassword);
+
+      await db_admin_users.create(
+        admin_email,
+        passwordHash,
+        admin_full_name || 'Agency Admin',
+        'agency_admin',
+        agency.id
+      );
+
+      res.json({
+        ok: true,
+        data: {
+          id: agency.id,
+          name: name,
+          admin_email: admin_email,
+          temporary_password: tempPassword
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  app.put('/admin/api/agencies/:id', requireAuth, async (req, res) => {
+    try {
+      if (req.session.role !== 'super_admin') {
+        return res.status(403).json({ ok: false, error: 'Forbidden' });
+      }
+
+      const agencyId = parseInt(req.params.id);
+      const { name, notes, active } = req.body;
+
+      const agency = await db_agencies.getById(agencyId);
+      if (!agency) {
+        return res.status(404).json({ ok: false, error: 'Agency not found' });
+      }
+
+      await db_agencies.updateFull(
+        agencyId,
+        name !== undefined ? name : agency.name,
+        notes !== undefined ? notes : agency.notes,
+        active !== undefined ? active : agency.active
+      );
+
+      const updated = await db_agencies.getById(agencyId);
+
+      res.json({
+        ok: true,
+        data: {
+          id: updated.id,
+          name: updated.name,
+          notes: updated.notes,
+          active: updated.active
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
   // Delete Agency (Super Admin only)
   app.post('/admin/agencies/delete/:id', requireAuth, requireSuperAdmin, async (req, res) => {
     try {
